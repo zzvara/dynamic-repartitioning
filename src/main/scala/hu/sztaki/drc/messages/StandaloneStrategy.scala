@@ -1,12 +1,12 @@
 package hu.sztaki.drc.messages
 
-import hu.sztaki.drc.{Scanner, ScannerFactory, TaskContextInterface, TaskMetricsInterface}
+import hu.sztaki.drc.{Scanner, ScannerFactory, Context, Metrics}
 
 /**
   * Scan strategy message sent to workers.
   */
-case class StandaloneStrategy[TaskContext <: TaskContextInterface[TaskMetrics],
-                              TaskMetrics <: TaskMetricsInterface[TaskMetrics]](
+case class StandaloneStrategy[TaskContext <: Context[TaskMetrics],
+                              TaskMetrics <: Metrics[TaskMetrics]](
   stageID: Int,
   scanner: ScannerFactory[Scanner[TaskContext, TaskMetrics]])
 extends ScanStrategy

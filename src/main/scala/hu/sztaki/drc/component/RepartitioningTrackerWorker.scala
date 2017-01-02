@@ -11,12 +11,12 @@ import scala.reflect.ClassTag
 abstract class RepartitioningTrackerWorker[
   MasterReference <: Messageable,
   SelfReference,
-  TaskContext <: TaskContextInterface[TaskMetrics],
-  TaskMetrics <: TaskMetricsInterface[TaskMetrics],
+  TaskContext <: Context[TaskMetrics],
+  TaskMetrics <: Metrics[TaskMetrics],
   Operator](val executorID: String)
 extends RepartitioningTracker[MasterReference] {
   protected val stageData =
-    mutable.HashMap[Int, RepartitioningStageData[TaskContext, TaskMetrics]]()
+    mutable.HashMap[Int, RepartitioningStageState[TaskContext, TaskMetrics]]()
 
   def selfReference: SelfReference
 
@@ -59,9 +59,9 @@ extends RepartitioningTracker[MasterReference] {
           // We can only give the TaskMetrics at this point.
           // ShuffleWriteMetrics has not been initialized.
             new RepartitioningInfo[TaskMetrics](stageID, taskID, executorID,
-              taskContext.taskMetrics(),
+              taskContext.metrics(),
               sd.partitioner, sd.version)
-          taskContext.taskMetrics().repartitioningInfo = Some(repartitioningInfo)
+          taskContext.metrics().repartitioningInfo = Some(repartitioningInfo)
 
           if (!sd.isRepartitioningFinished) {
             logInfo(s"Found strategy for stage $stageID, task $taskID. " +
@@ -110,7 +110,7 @@ extends RepartitioningTracker[MasterReference] {
         ScannerFactory[Scanner[TaskContext, TaskMetrics]]
       ]
       logInfo(s"Received scan strategy for stage $stageID.")
-      stageData.put(stageID, RepartitioningStageData[TaskContext, TaskMetrics](castedScanner))
+      stageData.put(stageID, RepartitioningStageState[TaskContext, TaskMetrics](castedScanner))
     case RepartitioningStrategy(stageID, repartitioner, version) =>
       logInfo(s"Received repartitioning strategy for" +
               s"stage $stageID with repartitioner $repartitioner.")
@@ -126,7 +126,7 @@ extends RepartitioningTracker[MasterReference] {
       scanStrategies.foreach {
         case StandaloneStrategy(stageID,
                                 scanner) =>
-          stageData.put(stageID, RepartitioningStageData[TaskContext, TaskMetrics](
+          stageData.put(stageID, RepartitioningStageState[TaskContext, TaskMetrics](
             scanner.asInstanceOf[ScannerFactory[Scanner[TaskContext, TaskMetrics]]]))
       }
     case ShutDownScanners(stageID) =>

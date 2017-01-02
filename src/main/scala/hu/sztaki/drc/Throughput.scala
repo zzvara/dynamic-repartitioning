@@ -3,8 +3,8 @@ package hu.sztaki.drc
 import hu.sztaki.drc.utilities.Configuration
 
 abstract class Throughput[
-  TaskContext <: TaskContextInterface[TaskMetrics],
-  TaskMetrics <: TaskMetricsInterface[TaskMetrics]](
+  TaskContext <: Context[TaskMetrics],
+  TaskMetrics <: Metrics[TaskMetrics]](
   totalSlots: Int,
   histogramDrop: (Int, Long, Int, Sampler) => Unit)
 extends Scanner[TaskContext, TaskMetrics](totalSlots, histogramDrop) {
@@ -22,7 +22,7 @@ extends Scanner[TaskContext, TaskMetrics](totalSlots, histogramDrop) {
   }
 
   def whenTaskCompleted(context: TaskContext): Unit = {
-    logInfo(s"Detected completion for stage ${taskContext.stageId()} task" +
+    logInfo(s"Detected completion for stage ${taskContext.stageID()} task" +
       s" ${taskContext.attemptNumber()}.")
     isRunning = false
   }
@@ -30,17 +30,17 @@ extends Scanner[TaskContext, TaskMetrics](totalSlots, histogramDrop) {
   def whenStarted(): Unit = {}
 
   override def run(): Unit = {
-    logInfo(s"Running scanner for stage ${taskContext.stageId()} task" +
+    logInfo(s"Running scanner for stage ${taskContext.stageID()} task" +
       s" ${taskContext.attemptNumber()}.")
     require(taskContext != null, "Scanner needs to have a valid task context!")
     isRunning = true
     whenStarted()
 
-    updateTotalSlots(taskContext.taskMetrics().writeCharacteristics)
+    updateTotalSlots(taskContext.metrics().writeCharacteristics)
 
     Thread.sleep(Configuration.internal().getInt("spark.repartitioning.throughput.interval"))
     while (isRunning) {
-      val dataCharacteristics = taskContext.taskMetrics().writeCharacteristics
+      val dataCharacteristics = taskContext.metrics().writeCharacteristics
       val recordBound =
         Configuration.internal().getInt("spark.repartitioning.throughput.record-bound")
       val histogramHeightDelta = dataCharacteristics.recordsPassed - lastHistogramHeight
@@ -53,15 +53,15 @@ extends Scanner[TaskContext, TaskMetrics](totalSlots, histogramDrop) {
       } else {
         lastHistogramHeight = dataCharacteristics.recordsPassed
         histogramDrop(
-          taskContext.stageId(),
+          taskContext.stageID(),
           taskContext.attemptNumber(),
           taskContext.partitionID(),
           dataCharacteristics)
       }
       Thread.sleep(Configuration.internal().getInt("spark.repartitioning.throughput.interval"))
-      updateTotalSlots(taskContext.taskMetrics().writeCharacteristics)
+      updateTotalSlots(taskContext.metrics().writeCharacteristics)
     }
-    logInfo(s"Scanner is finishing for stage ${taskContext.stageId()} task" +
+    logInfo(s"Scanner is finishing for stage ${taskContext.stageID()} task" +
             s" ${taskContext.attemptNumber()}.")
   }
 }

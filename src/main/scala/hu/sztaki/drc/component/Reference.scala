@@ -1,5 +1,6 @@
 package hu.sztaki.drc.component
 
-abstract class ComponentReference {
+abstract class Reference {
   def send(message: Any): Unit
+  def !(message: Any): Unit
 }

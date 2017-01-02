@@ -13,7 +13,7 @@ import hu.sztaki.drc.utilities.Configuration
   * @param attemptID Attempt number.
   * @param numPartitions Default number of partitions.
   */
-abstract class Strategy(
+abstract class DeciderStrategy(
   stageID: Int,
   attemptID: Int,
   var numPartitions: Int,

@@ -1,9 +1,9 @@
 package hu.sztaki.drc.partitioner
 
-import hu.sztaki.drc.{Sampler, TaskMetricsInterface}
+import hu.sztaki.drc.{Sampler, Metrics}
 import hu.sztaki.drc.utilities.Logger
 
-class RepartitioningInfo[TaskMetrics <: TaskMetricsInterface[TaskMetrics]](
+class RepartitioningInfo[TaskMetrics <: Metrics[TaskMetrics]](
   val stageID: Int,
   val taskID: Long,
   val executorName: String,

@@ -6,7 +6,7 @@ import hu.sztaki.drc.utilities.{Configuration, Logger}
 import scala.collection.mutable
 
 trait StreamingRepartitioningTrackerMasterHelper[Stream <: { def ID: Int }] extends Logger {
-  protected val _streamData = mutable.HashMap[Int, MasterStreamData]()
+  protected val _streamData = mutable.HashMap[Int, StreamState]()
 
   protected var isInitialized = false
 

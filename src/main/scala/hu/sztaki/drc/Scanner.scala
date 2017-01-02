@@ -10,8 +10,8 @@ import hu.sztaki.drc.utilities.Logger
   * Also, it should declare the sampling method.
   */
 abstract class Scanner[
-  TaskContext <: TaskContextInterface[TaskMetrics],
-  TaskMetrics <: TaskMetricsInterface[TaskMetrics]](
+  TaskContext <: Context[TaskMetrics],
+  TaskMetrics <: Metrics[TaskMetrics]](
   val totalSlots: Int,
   histogramDrop: (Int, Long, Int, Sampler) => Unit)
 extends Serializable with Runnable with Logger {

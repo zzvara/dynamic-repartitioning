@@ -6,12 +6,11 @@ import scala.collection.mutable
 import scala.collection.mutable.Set
 
 /**
-  *
   * @param streamID Stream is identified by the output DStream ID.
-  * @param relatedJobs Mini-batches which has been spawned by this stream.
+  * @param relatedJobs Mini-batches or jobs which has been spawned by this stream.
   * @param parentDStreams All the parent DStreams of the output DStream.
   */
-case class MasterStreamData(
+case class StreamState(
   streamID: Int,
   relatedJobs: Set[Int] = Set[Int](),
   parentDStreams: scala.collection.immutable.Set[Int] = scala.collection.immutable.Set[Int](),
@@ -24,7 +23,7 @@ case class MasterStreamData(
       */
     val strategies: mutable.Map[Int, StreamingDecider[_]] = mutable.Map[Int, StreamingDecider[_]]()
 
-    def addJob(jobID: Int): MasterStreamData = {
+    def addJob(jobID: Int): StreamState = {
       relatedJobs += jobID
       this
     }

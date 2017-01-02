@@ -19,7 +19,7 @@ package hu.sztaki.drc
 
 import hu.sztaki.drc.partitioner.RepartitioningInfo
 
-case class WorkerTaskData[TaskContext <: TaskContextInterface[TaskMetrics],
-                          TaskMetrics <: TaskMetricsInterface[TaskMetrics]](
+case class WorkerTaskData[TaskContext <: Context[TaskMetrics],
+                          TaskMetrics <: Metrics[TaskMetrics]](
   info: RepartitioningInfo[TaskMetrics],
   scanner: Scanner[TaskContext, TaskMetrics])

@@ -7,12 +7,12 @@ import hu.sztaki.drc.utilities.Logger
 import scala.collection.mutable
 
 trait StreamingRepartitioningTrackerWorkerHelper[
-  TaskContext <: TaskContextInterface[TaskMetrics],
-  TaskMetrics <: TaskMetricsInterface[TaskMetrics]] extends Logger {
-  protected val streamData = mutable.HashMap[Int, RepartitioningStreamData]()
+  TaskContext <: Context[TaskMetrics],
+  TaskMetrics <: Metrics[TaskMetrics]] extends Logger {
+  protected val streamData = mutable.HashMap[Int, RepartitioningStreamState]()
 
   protected def getStageData: mutable.HashMap[Int,
-    RepartitioningStageData[TaskContext, TaskMetrics]]
+    RepartitioningStageState[TaskContext, TaskMetrics]]
 
   protected def privateReceive: PartialFunction[Any, Unit] = {
     case ScanStrategies(scanStrategies) =>
@@ -24,14 +24,14 @@ trait StreamingRepartitioningTrackerWorkerHelper[
         case StandaloneStrategy(stageID, scanner) =>
           getStageData.update(
             stageID,
-            RepartitioningStageData[TaskContext, TaskMetrics](
+            RepartitioningStageState[TaskContext, TaskMetrics](
               scanner.asInstanceOf[ScannerFactory[Scanner[TaskContext, TaskMetrics]]]))
         case StreamingScanStrategy(streamID, strategy, parentStreams) =>
           logInfo(s"Received streaming strategy for stream ID $streamID.")
-          streamData.update(streamID, RepartitioningStreamData(streamID, strategy, parentStreams))
+          streamData.update(streamID, RepartitioningStreamState(streamID, strategy, parentStreams))
       }
     case StreamingScanStrategy(streamID, strategy, parentStreams) =>
       logInfo(s"Received streaming strategy for stream ID $streamID.")
-      streamData.update(streamID, RepartitioningStreamData(streamID, strategy, parentStreams))
+      streamData.update(streamID, RepartitioningStreamState(streamID, strategy, parentStreams))
   }
 }

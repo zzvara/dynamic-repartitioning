@@ -11,60 +11,46 @@ import scala.collection.mutable
 import scala.language.reflectiveCalls
 
 abstract class RepartitioningTrackerMaster[
-  ComponentReference <: Messageable,
+  Component <: Messageable,
   CallContext <: { def reply(response: Any): Unit },
-  TaskContext <: TaskContextInterface[TaskMetrics],
-  TaskMetrics <: TaskMetricsInterface[TaskMetrics],
+  C <: Context[M],
+  M <: Metrics[M],
   Operator]()(
-  implicit ev1: ScannerFactory[Scanner[TaskContext, TaskMetrics]],
-  ev2: StrategyFactory[Strategy])
-extends RepartitioningTracker[ComponentReference] {
-  type RTW = RepartitioningTrackerWorker[
-    ComponentReference,
-    ComponentReference,
-    TaskContext,
-    TaskMetrics,
-    Operator]
+  implicit ev1: ScannerFactory[Scanner[C, M]],
+  ev2: StrategyFactory[DeciderStrategy])
+extends RepartitioningTracker[Component] {
+  type RTW = RepartitioningTrackerWorker[Component, Component, C, M, Operator]
 
   /**
     * Collection of repartitioning workers. We expect them to register.
     */
-  protected val workers = mutable.HashMap[String, WorkerReference[ComponentReference]]()
+  protected val workers = mutable.HashMap[String, WorkerReference[Component]]()
 
   /**
     * Local worker in case when running in local mode.
     */
   protected var localWorker: Option[RTW] = None
-  /**
-    * Final histograms recorded by repartitioning workers.
-    * This can be switched with configuration
-    * `spark.repartitioning.final-histograms`. Default value is false.
-    * @todo Not used currently.
-    */
-  private val finalHistograms =
-    mutable.HashMap[Int, mutable.HashMap[Long, Sampler]]()
 
   private var doneRepartitioning = false
-
   /**
     * Pending stages to dynamically repartition. These stages are currently
     * running and we're waiting their tasks' histograms to arrive.
     * It also contains repartitioning strategies for stages.
     */
-  protected val _stageData = mutable.HashMap[Int, MasterStageData[TaskContext, TaskMetrics]]()
+  protected val _stageData = mutable.HashMap[Int, StageState[C, M]]()
 
   /**
     * @todo Make this stage-wise configurable.
     */
-  protected val configuredRPMode: RepartitioningModes.Value =
+  protected val configuredRPMode: Mode.Value =
     if (Configuration.internal().getBoolean("repartitioning.enabled")) {
       if (Configuration.internal().getBoolean("repartitioning.batch.only-once")) {
-        RepartitioningModes.ONLY_ONCE
+        Mode.ONLY_ONCE
       } else {
-        RepartitioningModes.ON
+        Mode.ON
       }
     } else {
-      RepartitioningModes.OFF
+      Mode.OFF
     }
 
   protected val totalSlots: AtomicInteger = new AtomicInteger(0)
@@ -77,14 +63,14 @@ extends RepartitioningTracker[ComponentReference] {
     */
   def initializeLocalWorker(): Unit
 
-  def scannerFactory(): ScannerFactory[Throughput[TaskContext, TaskMetrics]]
+  def scannerFactory(): ScannerFactory[Throughput[C, M]]
 
   /**
     * Gets the local worker.
     */
   def getLocalWorker: Option[RTW] = localWorker
 
-  protected def replyWithStrategies(workerReference: ComponentReference): Unit = {
+  protected def replyWithStrategies(workerReference: Component): Unit = {
     workerReference.send(
       ScanStrategies(_stageData.map(_._2.scanStrategy).toList)
     )
@@ -100,10 +86,10 @@ extends RepartitioningTracker[ComponentReference] {
         } else {
           logInfo(s"Registering worker from executor {$executorID}.")
           workers.put(executorID,
-                      new WorkerReference[ComponentReference](executorID,
-                        workerReference.asInstanceOf[ComponentReference]))
+                      new WorkerReference[Component](executorID,
+                        workerReference.asInstanceOf[Component]))
           context.reply(true)
-          replyWithStrategies(workerReference.asInstanceOf[ComponentReference])
+          replyWithStrategies(workerReference.asInstanceOf[Component])
         }
 
       /**
@@ -122,7 +108,7 @@ extends RepartitioningTracker[ComponentReference] {
               s" task $taskID (with size ${keyHistogram.value.size}).")
             logDebug(s"Histogram content is:")
             logDebug(keyHistogram.value.map(_.toString).mkString("\n"))
-            stageData.strategy.onHistogramArrival(partitionID, keyHistogram)
+            stageData.deciderStrategy.onHistogramArrival(partitionID, keyHistogram)
             context.reply(true)
           case None =>
             logWarning(s"Histograms arrived for invalid stage $stageID.")
@@ -134,21 +120,21 @@ extends RepartitioningTracker[ComponentReference] {
   protected def whenStageSubmitted(jobID: Int,
                                    stageID: Int,
                                    attemptID: Int,
-                                   repartitioningMode: RepartitioningModes.Value): Unit = {
+                                   repartitioningMode: Mode.Value): Unit = {
     this.synchronized {
-      if (repartitioningMode == RepartitioningModes.OFF) {
+      if (repartitioningMode == Mode.OFF) {
         logInfo(s"A stage submitted, but dynamic repartitioning is switched off.")
       } else {
         logInfo(s"A stage with id $stageID (job ID is $jobID)" +
                 s"submitted with dynamic repartitioning " +
                 s"mode $repartitioningMode.")
-        val scanStrategy = StandaloneStrategy[TaskContext, TaskMetrics](
+        val scanStrategy = StandaloneStrategy[C, M](
           stageID,
           scannerFactory
         )
         _stageData.update(stageID,
-          MasterStageData(stageID,
-            implicitly[StrategyFactory[Strategy]].apply(
+          StageState(stageID,
+            implicitly[StrategyFactory[DeciderStrategy]].apply(
               stageID,attemptID, totalSlots.intValue(), Some(() => getTotalSlots)),
             repartitioningMode,
             scanStrategy))
@@ -168,7 +154,7 @@ extends RepartitioningTracker[ComponentReference] {
                 s"Clearing tracking.")
         if(!doneRepartitioning) {
           shutDownScanners(stageID)
-          if (_stageData(stageID).mode == RepartitioningModes.ONLY_ONCE) {
+          if (_stageData(stageID).mode == Mode.ONLY_ONCE) {
             doneRepartitioning = true
           }
         }
