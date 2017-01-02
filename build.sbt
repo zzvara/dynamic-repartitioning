@@ -2,6 +2,8 @@ name := "dynamic-repartitioning-core"
 
 version := "0.1-SNAPSHOT"
 
+organization := "hu.sztaki"
+
 scalaVersion := "2.12.1"
 
 libraryDependencies += "com.typesafe" % "config" % "1.3.1"
