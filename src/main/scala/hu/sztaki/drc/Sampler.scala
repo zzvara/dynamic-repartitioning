@@ -5,18 +5,18 @@ import hu.sztaki.drc.utilities.{Configuration, Logger}
 import scala.collection.immutable.HashMap
 import scala.reflect.ClassTag
 
-abstract class Sampler extends Logger {
-  private val TAKE: Int =
+trait Sampler extends Logger {
+  protected val TAKE: Int =
     Configuration.internal().getInt("repartitioning.data-characteristics.take")
-  private val HISTOGRAM_SCALE_BOUNDARY: Int =
+  protected val HISTOGRAM_SCALE_BOUNDARY: Int =
     Configuration.internal().getInt("repartitioning.data-characteristics.histogram-scale-boundary")
-  private val BACKOFF_FACTOR: Double =
+  protected val BACKOFF_FACTOR: Double =
     Configuration.internal().getDouble("repartitioning.data-characteristics.backoff-factor")
-  private val DROP_BOUNDARY: Double =
+  protected val DROP_BOUNDARY: Double =
     Configuration.internal().getDouble("repartitioning.data-characteristics.drop-boundary")
-  private val HISTOGRAM_SIZE_BOUNDARY: Int =
+  protected val HISTOGRAM_SIZE_BOUNDARY: Int =
     Configuration.internal().getInt("repartitioning.data-characteristics.histogram-size-boundary")
-  private val HISTOGRAM_COMPACTION: Int =
+  protected val HISTOGRAM_COMPACTION: Int =
     Configuration.internal().getInt("repartitioning.data-characteristics.histogram-compaction")
 
   private var _map: Map[Any, Double] = HashMap[Any, Double]()
@@ -107,6 +107,8 @@ abstract class Sampler extends Logger {
       s"Cannot merge [${this.getClass.getName}] with [${other.getClass.getName}]!")
   }
 
+  def isEmpty: Boolean = _map.isEmpty
+
   /**
     * Defines the current value of this accumulator.
     */
@@ -118,7 +120,7 @@ abstract class Sampler extends Logger {
 }
 
 
-private[drc] object Sampler {
+object Sampler {
   def merge[A, B](zero: B)(f: (B, B) => B)(s1: Map[A, B], s2: Map[A, B]): Map[A, B] = {
     s1 ++ s2.map{ case (k, v) => k -> f(v, s1.getOrElse(k, zero)) }
   }
