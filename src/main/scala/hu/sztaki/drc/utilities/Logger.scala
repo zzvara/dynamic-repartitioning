@@ -5,7 +5,7 @@ import java.util.Base64
 import org.apache.commons.lang3.SerializationUtils
 import org.slf4j.LoggerFactory
 
-protected[drc] trait Logger {
+trait Logger {
   private val serializedObjectPrefix = "|||"
 
   @transient private val logger = com.typesafe.scalalogging.Logger(LoggerFactory.getLogger(
