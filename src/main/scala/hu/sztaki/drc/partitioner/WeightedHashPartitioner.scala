@@ -18,6 +18,7 @@ class WeightedHashPartitioner(
   assert(weights.isEmpty || weights.last >= 0 - precision, s"${weights.mkString("[", ",", "]")}")
   private val aggregated = weights.scan(0.0d)(_ + _).drop(1)
   private val sum = if (cut > sCut) aggregated.last else 0
+  private val searchTree = new BalancedTree(aggregated)
 
   override def size: Int = partitions - partitioningInfo.sCut
 
@@ -28,7 +29,9 @@ class WeightedHashPartitioner(
     } else if (searchKey <= block) {
       (searchKey / level).ceil.toInt - 1
     } else {
-      BinarySearch.binarySearch(aggregated, searchKey - block) + partitions - cut
+//      BinarySearch.binarySearch(aggregated, searchKey - block) + partitions - cut
+      // new search algorithm, faster than binary search
+      searchTree.getPartition(searchKey - block) + partitions - cut
     }
     bucket
   }
