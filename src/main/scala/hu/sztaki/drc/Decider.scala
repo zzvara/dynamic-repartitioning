@@ -23,7 +23,7 @@ abstract class Decider(
   stageID: Int,
   resourceStateHandler: Option[() => Int] = None)
 extends Logger with Serializable {
-  protected val histograms = mutable.HashMap[Int, Sampler]()
+  protected val histograms = mutable.HashMap[Int, Naive]()
   protected var currentVersion: Int = 0
 
   /**
@@ -75,7 +75,7 @@ extends Logger with Serializable {
     * Any decider strategy should accept incoming histograms as {{DataCharacteristicsAccumulator}}s
     * for its partitions.
     */
-  def onHistogramArrival(partitionID: Int, keyHistogram: Sampler): Unit
+  def onHistogramArrival(partitionID: Int, keyHistogram: Naive): Unit
 
   /**
     * Validates a global histogram whether it fulfills the requirements for a sane
@@ -162,7 +162,7 @@ extends Logger with Serializable {
 
     val globalHistogram =
       histograms.values.map(h => h.normalize(h.value, numRecords))
-        .reduce(Sampler.merge[Any, Double](0.0)(
+        .reduce(Naive.merge[Any, Double](0.0)(
           (a: Double, b: Double) => a + b)
         )
         .toSeq.sortBy(-_._2).take(50)

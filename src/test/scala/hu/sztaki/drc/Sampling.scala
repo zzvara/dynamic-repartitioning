@@ -3,7 +3,7 @@ package hu.sztaki.drc
 
 object Sampling {
   def main(args: Array[String]) {
-    val accum = new Sampler {}
+    val accum = new Naive {}
 
     val d1 = System.nanoTime()
 

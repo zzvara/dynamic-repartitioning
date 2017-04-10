@@ -1,6 +1,6 @@
 package hu.sztaki.drc.partitioner
 
-import hu.sztaki.drc.{Sampler, Metrics}
+import hu.sztaki.drc.{Metrics, Naive}
 import hu.sztaki.drc.utilities.Logger
 
 class RepartitioningInfo[TaskMetrics <: Metrics[TaskMetrics]](
@@ -23,7 +23,7 @@ class RepartitioningInfo[TaskMetrics <: Metrics[TaskMetrics]](
       s"Repartitioner is [$repartitioner] with new version [$version].")
   }
 
-  def getHistogramMeta: Sampler = {
+  def getHistogramMeta: Naive = {
     taskMetrics.writeCharacteristics
   }
 
