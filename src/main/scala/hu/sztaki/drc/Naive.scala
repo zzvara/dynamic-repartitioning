@@ -356,6 +356,7 @@ trait Naive extends Sampling {
 
         // Decide if additional cut is needed.
         if (_width > HISTOGRAM_SIZE_BOUNDARY) {
+          _widthHistory = _widthHistory :+ _width
           _width = histogramCompaction
           _nextScaleBoundary = _width + HISTOGRAM_SCALE_BOUNDARY
           val temporaryMap = HashMap.empty[Any, Double]
