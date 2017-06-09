@@ -178,7 +178,6 @@ trait Conceptier extends Sampling {
   protected val DRIFT_HISTORY_WEIGHT: Double =
     Configuration.internal().getInt("repartitioning.data-characteristics.drift-history-weight")
 
-  private var _nextScaleBoundary: Int = HISTOGRAM_SOFT_BOUNDARY
   private var consecutiveConceptSolidarity = 0
 
   var driftHistory: Double = DRIFT_BOUNDARY
@@ -186,6 +185,8 @@ trait Conceptier extends Sampling {
   protected var drifts = List.empty[Double]
 
   var history: Set[Any] = _
+
+  var _sampleScale = 1.0
 
   def driftList = drifts
 
@@ -196,10 +197,10 @@ trait Conceptier extends Sampling {
     if (random.nextDouble() <= _sampleRate) {
       (v._1, {
         map.get(v._1) match {
-          case Some(value) => map.put(v._1, value + 1)
+          case Some(value) => map.put(v._1, value + _sampleScale)
           case None =>
             _width += 1
-            map.put(v._1, 1)
+            map.put(v._1, _sampleScale)
         }
 
 
@@ -209,11 +210,8 @@ trait Conceptier extends Sampling {
         if (_width >= HISTOGRAM_HARD_BOUNDARY) {
           _widthHistory = _widthHistory :+ _width
           _sampleRate = _sampleRate / BACKOFF_FACTOR
-          _nextScaleBoundary += HISTOGRAM_SOFT_BOUNDARY
+          _sampleScale = _sampleScale * BACKOFF_FACTOR
           _backoffsPerformed += 1
-          map.transform {
-            case (_, x) => x / BACKOFF_FACTOR
-          }
           /**
             * Sort the histogram.
             */
@@ -290,7 +288,6 @@ trait Conceptier extends Sampling {
               }
               map = temporaryMap
               _width = HISTOGRAM_HARD_BOUNDARY - HISTOGRAM_COMPACTION
-              _nextScaleBoundary = _width + HISTOGRAM_SOFT_BOUNDARY
             }
           } else {
             HISTOGRAM_HARD_BOUNDARY = HISTOGRAM_HARD_BOUNDARY + HISTOGRAM_SOFT_BOUNDARY
