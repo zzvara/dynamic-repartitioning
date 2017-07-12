@@ -13,7 +13,7 @@ abstract class Scanner[
   TaskContext <: Context[TaskMetrics],
   TaskMetrics <: Metrics[TaskMetrics]](
   val totalSlots: Int,
-  histogramDrop: (Int, Long, Int, Naive) => Unit)
+  histogramDrop: (Int, Long, Int, Sampling) => Unit)
 extends Serializable with Runnable with Logger {
   var taskContext: TaskContext = _
 

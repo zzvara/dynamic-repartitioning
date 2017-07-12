@@ -1,7 +1,7 @@
 package hu.sztaki.drc.partitioner
 
-import hu.sztaki.drc.{Metrics, Naive}
 import hu.sztaki.drc.utilities.Logger
+import hu.sztaki.drc.{Metrics, Sampling}
 
 class RepartitioningInfo[TaskMetrics <: Metrics[TaskMetrics]](
   val stageID: Int,
@@ -23,7 +23,7 @@ class RepartitioningInfo[TaskMetrics <: Metrics[TaskMetrics]](
       s"Repartitioner is [$repartitioner] with new version [$version].")
   }
 
-  def getHistogramMeta: Naive = {
+  def getHistogramMeta: Sampling = {
     taskMetrics.writeCharacteristics
   }
 

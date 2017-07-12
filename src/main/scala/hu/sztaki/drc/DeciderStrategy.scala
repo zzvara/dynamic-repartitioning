@@ -25,7 +25,7 @@ extends Decider(stageID, resourceStateHandler) {
     */
   override def onHistogramArrival(
       partitionID: Int,
-      keyHistogram: Naive): Unit = {
+      keyHistogram: Sampling): Unit = {
     this.synchronized {
       if (keyHistogram.version == currentVersion) {
         logInfo(s"Recording histogram arrival for partition $partitionID.")

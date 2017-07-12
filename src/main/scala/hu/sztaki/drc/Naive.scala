@@ -14,152 +14,6 @@ object Conceptier {
   type Frequency = Double
 }
 
-abstract class Adaptive(TAKE: Int = 20, BACKOFF_FACTOR: Double = 1.05) extends Sampling {
-  protected var HISTOGRAM_HARD_BOUNDARY: Int = TAKE * 2
-  protected val MIN_MEMORY: Int = TAKE * 8
-  protected val DRIFT_BOUNDARY: Double = 1.0 / (2.0 * TAKE.toDouble)
-  protected val DRIFT_HISTORY_WEIGHT: Double = 0.5
-  protected val GROW_FACTOR: Int = 2
-
-  def shrinkFactor(): Int = {
-    HISTOGRAM_HARD_BOUNDARY / 15
-  }
-
-  def compactionFactor(): Int = {
-    math.max(HISTOGRAM_HARD_BOUNDARY / 5, MIN_MEMORY / 2)
-  }
-
-  var driftHistory: Double = DRIFT_BOUNDARY
-
-  protected var drifts = List.empty[Double]
-
-  var history: Set[Any] = _
-
-  def driftList = drifts
-
-  def add(v: (Any, Double)): Unit = {
-    _recordsPassed += 1
-    if (random.nextDouble() <= _sampleRate) {
-      (v._1, {
-        map.get(v._1) match {
-          case Some(value) =>
-            map.put(v._1, value + 1)
-          case None =>
-            _width += 1
-            map.put(v._1, 1)
-
-            /**
-              * A histogram size boundary has been reached. Maybe cut, maybe not. Let's see.
-              */
-            if (_width >= HISTOGRAM_HARD_BOUNDARY) {
-              //println(s"Width while reaching hard is [${_width}].")
-              _widthHistory = _widthHistory :+ _width
-              _sampleRate = _sampleRate / BACKOFF_FACTOR
-              _backoffsPerformed += 1
-              map.transform {
-                case (_, x) => x / BACKOFF_FACTOR
-              }
-              /**
-                * Sort the histogram.
-                */
-              val sortedMap = map.toSeq.sortBy(-_._2)
-
-              val currentTop = sortedMap.take(TAKE)
-              val currentKeySet = currentTop.map(_._1).toSet
-
-              /**
-                * Load the last top-k (history) and retrieve the current as well.
-                */
-              if (history != null) {
-                /**
-                  * @note Calculate this drift, this is the brainer.
-                  */
-                val missingKeys = history -- currentKeySet
-                //println(s"Total [$missingKeys] are missing from the new top-k.")
-                // Search for the missing items in the current, whole histogram.
-                val newPositionsOfFallingKeys = mutable.Map[Key, (Position, Frequency)]()
-                missingKeys.map {
-                  key =>
-                    newPositionsOfFallingKeys.put(key,
-                      (sortedMap.indexWhere(_._1 == key), map(key))
-                    )
-                }
-                val minimumItemInTop = currentTop.last
-                val maximumDistance = (((minimumItemInTop._2 - TAKE + _width) +
-                  (minimumItemInTop._2 - (2 * TAKE) + _width)) / 2) * TAKE
-                val currentDistance = newPositionsOfFallingKeys.map {
-                  case (_, (p, f)) =>
-                    require(p > TAKE - 1)
-                    (p - TAKE) + (minimumItemInTop._2 - f)
-                }.sum
-
-                //println(s"Current distance is [$currentDistance] and maximum distance is [$maximumDistance].")
-
-                val drift = currentDistance / maximumDistance
-                driftHistory = (driftHistory * DRIFT_HISTORY_WEIGHT) + (drift * (1 - DRIFT_HISTORY_WEIGHT))
-                drifts = drifts :+ drift
-
-                //println(s"Current drift is [$drift] and drift history is [$driftHistory].")
-
-                if (driftHistory > DRIFT_BOUNDARY) {
-                  /**
-                    * Too much drift, increase the boundary, just to be safe.
-                    * Do not cut.
-                    */
-                  HISTOGRAM_HARD_BOUNDARY = HISTOGRAM_HARD_BOUNDARY * GROW_FACTOR
-                } else {
-                  if (HISTOGRAM_HARD_BOUNDARY > MIN_MEMORY) {
-                    /**
-                      * Step back with one boundary.
-                      */
-                    HISTOGRAM_HARD_BOUNDARY = math.max(
-                      HISTOGRAM_HARD_BOUNDARY - shrinkFactor(), MIN_MEMORY
-                    )
-                  }
-                  val compaction = HISTOGRAM_HARD_BOUNDARY - compactionFactor()
-                  /**
-                    * Cut with the current boundary - maybe changed in the last step.
-                    */
-                  if (HISTOGRAM_HARD_BOUNDARY > HISTOGRAM_HARD_BOUNDARY - compaction) {
-                    //println("Cutting.")
-                    //println(s"Compacting to [${HISTOGRAM_HARD_BOUNDARY - compaction}]")
-                    val temporaryMap = HashMap.empty[Any, Double]
-                    sortedMap.take(HISTOGRAM_HARD_BOUNDARY - compaction).foreach {
-                      pair => temporaryMap.put(pair._1, pair._2)
-                    }
-                    map = temporaryMap
-                    _width = HISTOGRAM_HARD_BOUNDARY - compaction
-                  } else {
-                    //println("Danger, can not cut.")
-                  }
-                }
-              } else {
-                HISTOGRAM_HARD_BOUNDARY = HISTOGRAM_HARD_BOUNDARY * GROW_FACTOR
-              }
-
-              /**
-                * Update the history.
-                */
-              history = currentKeySet
-            }
-        }
-      })
-
-    }
-  }
-
-  def merge(other: Naive): Unit = other match {
-    case o: Adaptive =>
-      _width = o._width
-      _recordsPassed = o._recordsPassed
-      _sampleRate = o._sampleRate
-      _version = o._version
-      map = o.map
-    case _ => throw new UnsupportedOperationException(
-      s"Cannot merge [${this.getClass.getName}] with [${other.getClass.getName}]!")
-  }
-}
-
 trait Conceptier extends Sampling {
   protected val TAKE: Int =
     Configuration.internal().getInt("repartitioning.data-characteristics.take")
@@ -304,7 +158,7 @@ trait Conceptier extends Sampling {
     }
   }
 
-  def merge(other: Naive): Unit = other match {
+  def mergeWith(other: Sampling): Unit = other match {
     case o: Conceptier =>
       _width = o._width
       _recordsPassed = o._recordsPassed
@@ -366,7 +220,7 @@ trait Naive extends Sampling {
     }
   }
 
-  def merge(other: Naive): Unit = other match {
+  def mergeWith(other: Sampling): Unit = other match {
     case o: Naive =>
       _width = o._width
       _recordsPassed = o._recordsPassed
@@ -380,7 +234,7 @@ trait Naive extends Sampling {
 
 }
 
-abstract class Sampling extends Logger {
+trait Sampling extends Logger {
   val random = new XoRoShiRo128PlusRandom()
 
   protected var map: mutable.Map[Any, Double] = mutable.HashMap.empty[Any, Double]

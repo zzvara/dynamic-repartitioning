@@ -1,6 +1,6 @@
 package hu.sztaki.drc.messages
 
-import hu.sztaki.drc.Naive
+import hu.sztaki.drc.Sampling
 
 import scala.reflect.ClassTag
 
@@ -11,4 +11,4 @@ case class ShuffleWriteStatus[T: ClassTag](
   stageID: Int,
   taskID: Long,
   partitionID: Int,
-  keyHistogram: Naive) extends RepartitioningTrackerMessage
+  keyHistogram: Sampling) extends RepartitioningTrackerMessage

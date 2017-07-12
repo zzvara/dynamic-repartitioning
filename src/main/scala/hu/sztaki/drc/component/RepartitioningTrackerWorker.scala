@@ -95,7 +95,7 @@ extends RepartitioningTracker[MasterReference] {
   def sendHistogram(stageID: Int,
                     taskID: Long,
                     partitionID: Int,
-                    keyHistogram: Naive): Unit = {
+                    keyHistogram: Sampling): Unit = {
     logInfo(s"Sending histogram (with size ${keyHistogram.value.size})" +
             s" (records passed is ${
               keyHistogram.recordsPassed

@@ -1,7 +1,7 @@
 package hu.sztaki.drc.component
 
-import hu.sztaki.drc.{Naive, StreamingDecider}
 import hu.sztaki.drc.utilities.{Configuration, Logger}
+import hu.sztaki.drc.{Sampling, StreamingDecider}
 
 import scala.collection.mutable
 
@@ -35,7 +35,7 @@ trait StreamingRepartitioningTrackerMasterHelper[Stream <: { def ID: Int }] exte
     stream: Stream,
     taskID: Long,
     partitionID: Int,
-    dataCharacteristics: Naive
+    dataCharacteristics: Sampling
   ): Unit = {
     _streamData.find { _._2.hasParent(stream.ID) } match {
       case Some((sID, streamData)) =>

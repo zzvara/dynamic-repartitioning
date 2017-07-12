@@ -6,7 +6,7 @@ abstract class Throughput[
   TaskContext <: Context[TaskMetrics],
   TaskMetrics <: Metrics[TaskMetrics]](
   totalSlots: Int,
-  histogramDrop: (Int, Long, Int, Naive) => Unit)
+  histogramDrop: (Int, Long, Int, Sampling) => Unit)
 extends Scanner[TaskContext, TaskMetrics](totalSlots, histogramDrop) {
   private var lastHistogramHeight: Long = 0
   private val keyHistogramWidth: Int =
@@ -16,7 +16,7 @@ extends Scanner[TaskContext, TaskMetrics](totalSlots, histogramDrop) {
     * Reconfigures the data-characteristics sampling by updating the total slots available.
     * @param dataCharacteristics Data characteristics shuffle write metrics.
     */
-  def updateTotalSlots(dataCharacteristics: Naive): Unit = {
+  def updateTotalSlots(dataCharacteristics: Sampling): Unit = {
     logInfo("Updating number of total slots.")
     // dataCharacteristics.updateTotalSlots(totalSlots)
   }

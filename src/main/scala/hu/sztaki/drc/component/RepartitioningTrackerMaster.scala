@@ -99,7 +99,7 @@ extends RepartitioningTracker[Component] {
         * belongs to.
         */
       case ShuffleWriteStatus(stageID, taskID, partitionID,
-                              keyHistogram: Naive) =>
+                              keyHistogram: Sampling) =>
         logInfo(s"Received ShuffleWriteStatus message for " +
                 s"stage $stageID and task $taskID")
         _stageData.get(stageID) match {
