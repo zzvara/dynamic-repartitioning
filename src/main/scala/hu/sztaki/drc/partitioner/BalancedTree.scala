@@ -71,4 +71,21 @@ class BalancedTree(weights: Array[Double]) {
 				s"${right.toString}\n"
 		}
 	}
+
+}
+
+object BalancedTreeTest {
+	def main(args: Array[String]): Unit = {
+		val weights = Array[Double](0, 0.3, 0.55, 0.75, 0.78, 0.81, 0.84, 0.87, 0.9, 0.93, 0.96, 0.98,
+			0.99, 1.0)
+		//    val weights = Array[Double](0, 1.0)
+
+
+		val tree = new BalancedTree(weights)
+		println(tree.toString)
+		println("0.79 -> " + tree.getPartition(0.79))
+		println("0.81 -> " + tree.getPartition(0.81))
+		println("0.0 -> " + tree.getPartition(0.0))
+		println("1.0 -> " + tree.getPartition(1.0))
+	}
 }

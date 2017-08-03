@@ -1,11 +1,10 @@
 package hu.sztaki.drc
 
-import hu.sztaki.drc.partitioner.{KeyIsolationPartitioner, Partitioner, PartitioningInfo, WeightedHashPartitioner}
+import hu.sztaki.drc.partitioner._
 import hu.sztaki.drc.utilities.{Configuration, Exception, Logger}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.util.hashing.MurmurHash3
 
 /**
   * A decider strategy, that continuously receives histograms from the physical tasks
@@ -21,10 +20,14 @@ import scala.util.hashing.MurmurHash3
   */
 abstract class Decider(
   stageID: Int,
-  resourceStateHandler: Option[() => Int] = None)
+  resourceStateHandler: Option[() => Int] = None)(implicit f: PartitionerFactory)
 extends Logger with Serializable {
   protected val histograms = mutable.HashMap[Int, Sampling]()
   protected var currentVersion: Int = 0
+
+  // TODO find out the number of partitions
+  // TODO add switch for KI/Gedik partitioner
+  protected var repartitioner: Updateable = f.apply(totalSlots)
 
   /**
     * Number of repartitions happened.
@@ -181,12 +184,7 @@ extends Logger with Serializable {
   protected def getNewPartitioner(partitioningInfo: PartitioningInfo): Partitioner = {
     val sortedKeys = partitioningInfo.sortedKeys
 
-    val repartitioner = new KeyIsolationPartitioner(
-      partitioningInfo,
-      WeightedHashPartitioner.newInstance(partitioningInfo, (key: Any) =>
-        (MurmurHash3.stringHash((key.hashCode + 123456791).toString).toDouble
-          / Int.MaxValue + 1) / 2)
-    )
+    repartitioner = repartitioner.update(partitioningInfo)
 
     logInfo("Partitioner created, simulating run with global histogram.")
     sortedKeys.foreach {

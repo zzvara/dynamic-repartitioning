@@ -3,6 +3,7 @@ package hu.sztaki.drc
 import hu.sztaki.drc.component.RepartitioningTrackerMaster
 import hu.sztaki.drc.partitioner.Partitioner
 import hu.sztaki.drc.utilities.Configuration
+import hu.sztaki.drc.partitioner.KeyIsolatorPartitioner.Factory
 
 /**
   * A simple strategy to decide when and how to repartition a stage.
