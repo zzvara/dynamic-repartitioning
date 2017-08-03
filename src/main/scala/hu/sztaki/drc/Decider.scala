@@ -105,9 +105,9 @@ extends Logger with Serializable {
     val initialInfo =
       PartitioningInfo.newInstance(globalHistogram, totalSlots, treeDepthHint)
     val multiplier = math.min(initialInfo.level / initialInfo.sortedValues.head, 2)
-    numberOfPartitions = (totalSlots * multiplier.ceil.toInt) - 1
+    numberOfPartitions = (totalSlots * multiplier.ceil).toInt
     if (Configuration.internal().getBoolean("repartitioning.streaming.force-slot-size")) {
-      numberOfPartitions = totalSlots - 1
+      numberOfPartitions = totalSlots
     }
     val partitioningInfo =
       PartitioningInfo.newInstance(globalHistogram, numberOfPartitions, treeDepthHint)
