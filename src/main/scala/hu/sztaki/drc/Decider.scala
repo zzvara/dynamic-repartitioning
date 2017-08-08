@@ -27,7 +27,7 @@ extends Logger with Serializable {
 
   // TODO find out the number of partitions
   // TODO add switch for KI/Gedik partitioner
-  protected var repartitioner: Updateable = f.apply(totalSlots)
+  protected var repartitioner: Option[Updateable] = None
 
   /**
     * Number of repartitions happened.
@@ -102,12 +102,13 @@ extends Logger with Serializable {
     */
   protected def getPartitioningInfo(
       globalHistogram: scala.collection.Seq[(Any, Double)]): PartitioningInfo = {
-    val initialInfo =
-      PartitioningInfo.newInstance(globalHistogram, totalSlots, treeDepthHint)
-    val multiplier = math.min(initialInfo.level / initialInfo.sortedValues.head, 2)
-    numberOfPartitions = (totalSlots * multiplier.ceil).toInt
     if (Configuration.internal().getBoolean("repartitioning.streaming.force-slot-size")) {
       numberOfPartitions = totalSlots
+    } else {
+      val initialInfo =
+        PartitioningInfo.newInstance(globalHistogram, totalSlots, treeDepthHint)
+      val multiplier = math.min(initialInfo.level / initialInfo.sortedValues.head, 2)
+      numberOfPartitions = (totalSlots * multiplier.ceil).toInt
     }
     val partitioningInfo =
       PartitioningInfo.newInstance(globalHistogram, numberOfPartitions, treeDepthHint)
@@ -184,17 +185,20 @@ extends Logger with Serializable {
   protected def getNewPartitioner(partitioningInfo: PartitioningInfo): Partitioner = {
     val sortedKeys = partitioningInfo.sortedKeys
 
-    repartitioner = repartitioner.update(partitioningInfo)
+    repartitioner = repartitioner match {
+      case Some(rp) => Some(rp.update(partitioningInfo))
+      case None => Some(f.apply(totalSlots))
+    }
 
     logInfo("Partitioner created, simulating run with global histogram.")
     sortedKeys.foreach {
-      key => logInfo(s"Key $key went to ${repartitioner.get(key)}.")
+      key => logInfo(s"Key $key went to ${repartitioner.get.get(key)}.")
     }
 
     logInfo(s"Decided to repartition stage $stageID.")
     currentVersion += 1
 
-    repartitioner
+    repartitioner.getOrElse(throw new RuntimeException("Partitioner is `None` after repartitioning. This was unexpected!"))
   }
 
   protected def resetPartitioners(newPartitioner: Partitioner): Unit
