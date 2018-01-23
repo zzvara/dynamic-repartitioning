@@ -32,7 +32,7 @@ trait Conceptier extends Sampling {
   protected val DRIFT_HISTORY_WEIGHT: Double =
     Configuration.internal().getInt("repartitioning.data-characteristics.drift-history-weight")
 
-  private var consecutiveConceptSolidarity = 0
+  protected var consecutiveConceptSolidarity = 0
 
   var driftHistory: Double = DRIFT_BOUNDARY
 
@@ -44,7 +44,7 @@ trait Conceptier extends Sampling {
 
   def driftList = drifts
 
-  private var histogramCompaction = HISTOGRAM_COMPACTION
+  protected var histogramCompaction = HISTOGRAM_COMPACTION
 
   def add(v: (Any, Double)): Unit = {
     _recordsPassed += 1
