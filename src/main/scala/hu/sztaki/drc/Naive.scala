@@ -32,11 +32,11 @@ trait Conceptier extends Sampling {
   protected val DRIFT_HISTORY_WEIGHT: Double =
     Configuration.internal().getInt("repartitioning.data-characteristics.drift-history-weight")
 
-  protected var consecutiveConceptSolidarity = 0
+  var consecutiveConceptSolidarity = 0
 
   var driftHistory: Double = DRIFT_BOUNDARY
 
-  protected var drifts = List.empty[Double]
+  var drifts = List.empty[Double]
 
   var history: Set[Any] = _
 
