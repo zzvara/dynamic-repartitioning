@@ -1,6 +1,6 @@
 name := "dynamic-repartitioning-core"
 
-version := "0.1.40-SNAPSHOT"
+version := "0.1.70-SNAPSHOT"
 
 organization := "hu.sztaki"
 
