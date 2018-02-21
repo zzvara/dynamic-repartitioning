@@ -1,10 +1,10 @@
 name := "dynamic-repartitioning-core"
 
-version := "0.1.40-SNAPSHOT"
+version := "0.1.70-SNAPSHOT"
 
 organization := "hu.sztaki"
 
-scalaVersion := "2.11.8"
+scalaVersion := "2.11.12"
 
 resolvers += "JBoss" at "https://repository.jboss.org/"
 

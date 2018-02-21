@@ -44,17 +44,21 @@ trait Conceptier extends Sampling {
 
   def driftList = drifts
 
-  protected var histogramCompaction = HISTOGRAM_COMPACTION
+  var histogramCompaction = HISTOGRAM_COMPACTION
 
   def add(v: (Any, Double)): Unit = {
+    add(v._1)
+  }
+
+  def add(v: Any): Unit = {
     _recordsPassed += 1
     if (random.nextDouble() <= _sampleRate) {
-      (v._1, {
-        map.get(v._1) match {
-          case Some(value) => map.put(v._1, value + _sampleScale)
+      (v, {
+        map.get(v) match {
+          case Some(value) => map.put(v, value + _sampleScale)
           case None =>
             _width += 1
-            map.put(v._1, _sampleScale)
+            map.put(v, _sampleScale)
         }
 
 
