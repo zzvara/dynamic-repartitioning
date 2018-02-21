@@ -107,9 +107,10 @@ extends Logger with Serializable {
     } else {
       val initialInfo =
         PartitioningInfo.newInstance(globalHistogram, totalSlots, treeDepthHint)
-      val multiplier = math.min(initialInfo.level / initialInfo.sortedValues.head, 2)
+      val multiplier = math.max(initialInfo.level / initialInfo.sortedValues.head, 1)
       numberOfPartitions = (totalSlots * multiplier.ceil).toInt
     }
+    logInfo(s"number of slots: $totalSlots, number of partitions: $numberOfPartitions")
     val partitioningInfo =
       PartitioningInfo.newInstance(globalHistogram, numberOfPartitions, treeDepthHint)
     logInfo(s"Constructed partitioning info is [$partitioningInfo].")

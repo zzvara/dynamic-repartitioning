@@ -1,6 +1,6 @@
 package hu.sztaki.drc.partitioner
 
-trait PartitionerFactory {
+trait PartitionerFactory extends Serializable {
 
 	def apply(numPartitions: Int): Partitioner with Updateable
 }
