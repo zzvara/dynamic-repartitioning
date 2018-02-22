@@ -55,6 +55,10 @@ extends Logger with Serializable {
   protected val treeDepthHint =
     Configuration.get().internal.getInt("repartitioning.partitioner-tree-depth")
 
+  // TODO make keyExcess configurable
+  protected val keyExcess: Int = numberOfPartitions
+  protected val globalHistogramSizeLimit: Int = numberOfPartitions + keyExcess + 1
+
   /**
     * Current, active global histogram that has been computed from the
     * histograms, stored in this variable.
@@ -170,7 +174,7 @@ extends Logger with Serializable {
         .reduce(Naive.merge[Any, Double](0.0)(
           (a: Double, b: Double) => a + b)
         )
-        .toSeq.sortBy(-_._2).take(50)
+        .toSeq.sortBy(-_._2).take(globalHistogramSizeLimit)
     logObject(("globalHistogram", stageID, globalHistogram))
     logInfo(
       globalHistogram.foldLeft(
