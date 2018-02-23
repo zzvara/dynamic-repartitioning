@@ -120,6 +120,7 @@ extends RepartitioningTracker[Component] {
   protected def whenStageSubmitted(jobID: Int,
                                    stageID: Int,
                                    attemptID: Int,
+                                   parallelism: Int,
                                    repartitioningMode: Mode.Value): Unit = {
     this.synchronized {
       if (repartitioningMode == Mode.OFF) {
@@ -135,7 +136,7 @@ extends RepartitioningTracker[Component] {
         _stageData.update(stageID,
           StageState(stageID,
             implicitly[StrategyFactory[DeciderStrategy]].apply(
-              stageID,attemptID, totalSlots.intValue(), Some(() => getTotalSlots)),
+              stageID,attemptID, parallelism, Some(() => getTotalSlots)),
             repartitioningMode,
             scanStrategy))
         logInfo(s"Sending repartitioning scan-strategy to each worker for " +
