@@ -10,35 +10,51 @@ import hu.sztaki.drc.utilities.{Configuration, Messageable}
 import scala.collection.mutable
 import scala.language.reflectiveCalls
 
+/**
+  * Abstract RTM.
+  * @tparam Component The self and worker reference class, that enables messaging through
+  *         arbitrary implementation.
+  * @tparam Call Call context that can be replied to from any component.
+  * @tparam C Task context type parameter, should be implemented by the compute engine.
+  * @tparam M Task metrics type parameter, should be implemented by the compute engine.
+  * @tparam Operator The operator abstraction that the compute engine provides.
+  */
 abstract class RepartitioningTrackerMaster[
   Component <: Messageable,
-  CallContext <: { def reply(response: Any): Unit },
+  Call <: { def reply(response: Any): Unit },
   C <: Context[M],
   M <: Metrics[M],
-  Operator]()(
-  implicit ev1: ScannerFactory[Scanner[C, M]],
-  ev2: StrategyFactory[DeciderStrategy])
+  Operator]()(implicit scannerF: ScannerFactory[Scanner[C, M]],
+              strategyF: StrategyFactory[DeciderStrategy])
 extends RepartitioningTracker[Component] {
   type RTW = RepartitioningTrackerWorker[Component, Component, C, M, Operator]
-
   /**
     * Collection of repartitioning workers. We expect them to register.
     */
   protected val workers = mutable.HashMap[String, WorkerReference[Component]]()
-
   /**
     * Local worker in case when running in local mode.
     */
   protected var localWorker: Option[RTW] = None
-
-  private var doneRepartitioning = false
+  /**
+    * Local mode can be detected if an RTW is a property of this RTM.
+    */
+  def localMode = localWorker.isDefined
+  /**
+    * Standby mode means that the RTM will not handle repartitioning.
+    * @note If set by configuration, the RTW will go to standby mode after one repartitioning.
+    */
+  private var _standby = false
+  /**
+    * Whether the RTM is in standby mode.
+    */
+  def standby = _standby
   /**
     * Pending stages to dynamically repartition. These stages are currently
     * running and we're waiting their tasks' histograms to arrive.
     * It also contains repartitioning strategies for stages.
     */
   protected val _stageData = mutable.HashMap[Int, StageState[C, M]]()
-
   /**
     * @todo Make this stage-wise configurable.
     */
@@ -52,31 +68,39 @@ extends RepartitioningTracker[Component] {
     } else {
       Mode.OFF
     }
-
+  /**
+    * Total compute slots available by the compute engine.
+    * @todo Rename.
+    */
   protected val totalSlots: AtomicInteger = new AtomicInteger(0)
-
+  /**
+    * Total compute slots available by the compute engine.
+    */
   def getTotalSlots: Int = totalSlots.get()
-
   /**
     * Initializes a local worker and asks it to register with this
     * repartitioning tracker master.
     */
   def initializeLocalWorker(): Unit
-
+  /**
+    * Singular, dedicated scanner factory associated with the RTM.
+    * @todo Support for more factories.
+    */
   def scannerFactory(): ScannerFactory[Throughput[C, M]]
-
   /**
     * Gets the local worker.
     */
   def getLocalWorker: Option[RTW] = localWorker
-
+  /**
+    * Sends all existing strategies to a worker specified as a [[Component]] reference.
+    */
   protected def replyWithStrategies(workerReference: Component): Unit = {
     workerReference.send(
       ScanStrategies(_stageData.map(_._2.scanStrategy).toList)
     )
   }
 
-  protected def componentReceiveAndReply(context: CallContext): PartialFunction[Any, Unit] = {
+  protected def componentReceiveAndReply(context: Call): PartialFunction[Any, Unit] = {
     this.synchronized {
       case Register(executorID, workerReference) =>
         logInfo(s"Received register message for worker $executorID")
@@ -146,25 +170,23 @@ extends RepartitioningTracker[Component] {
     }
   }
 
-  protected def whenTaskEnd(stageID: Int, reason: TaskEndReason.Value): Unit = this.synchronized {
-    if (_stageData.contains(stageID)) {
+  protected def whenTaskEnd(region: Int, reason: TaskEndReason.Value): Unit = this.synchronized {
+    if (_stageData.contains(region)) {
       if (reason == TaskEndReason.Success) {
-        // Currently we disable repartitioning for a stage,
-        // if any of its tasks finish.
-        logInfo(s"A task completion detected for stage $stageID. " +
-                s"Clearing tracking.")
-        if(!doneRepartitioning) {
-          shutDownScanners(stageID)
-          if (_stageData(stageID).mode == Mode.ONLY_ONCE) {
-            doneRepartitioning = true
+        logInfo(s"A task completion detected for parallel region [$region]. " +
+                s"Signaling corresponding RTW to shut down scanners.")
+        if(!_standby) {
+          shutDownScanners(region)
+          if (_stageData(region).mode == Mode.ONLY_ONCE) {
+            _standby = true
           }
         }
       } else {
         logWarning(s"Detected completion of a failed task for " +
-                   s"stage $stageID!")
+                   s"stage $region!")
       }
     } else {
-      logWarning(s"Invalid stage of id $stageID detected on task completion! " +
+      logWarning(s"Invalid stage of id $region detected on task completion! " +
                  s"Maybe not tracked intentionally?")
     }
   }
