@@ -11,38 +11,59 @@ import scala.collection.mutable.ArrayBuffer
   * and decides when and how to repartition a certain stage of computation.
   *
   * That means a decider strategy is always bound to a specific stage in batch mode, or
-  * to a stream in streaming mode. A stageID of Spark should be a vertexID in Flink.
+  * to a stream in streaming mode. A `stageID` of Spark should be a `vertexID` of Flink.
   *
   * @todo Add support to check distance from uniform distribution.
-  * @param stageID A Spark stage ID, stream ID or a vertex ID in Flink.
-  * @param resourceStateHandler Optional function that can query the state of the resources
-  *                             available for the application.
+  * @param stageID
+  * @param resourceStateHandler
   */
 abstract class Decider(
+  /**
+   * A Spark stage ID, stream ID or a vertex ID in Flink.
+   */
   stageID: Int,
-  resourceStateHandler: Option[() => Int] = None)(implicit f: PartitionerFactory)
+  /**
+    * Parallelism of this compute stage.
+    */
+  numberOfPartitions: Int,
+  /**
+    * Optional function that can query the state of the resources available for the application.
+    */
+  resourceStateHandler: Option[() => Int] = None)(
+  implicit f: PartitionerFactory)
 extends Logger with Serializable {
+  /**
+    * Stores the receives histogram.
+    */
   protected val histograms = mutable.HashMap[Int, Sampling]()
+  /**
+    * Current version of the active partitioner.
+    */
   protected var currentVersion: Int = 0
 
-  // TODO find out the number of partitions
-  // TODO add switch for KI/Gedik partitioner
+  /**
+    * @todo Find out the number of partitions.
+    * @todo Add a switch for other partitioners, for example Gedik.
+    */
   protected var repartitioner: Option[Updateable] = None
 
   /**
-    * Number of repartitions happened.
+    * Number of repartitions happened so far for this stage.
     */
   protected var repartitionCount: Int = 0
+
+  /**
+    * Number of desired partitions to have.
+    * @note The decision logic can scale on demand. The underlying engine should provide
+    *       fission capabilities. If not, than the system should overwrite this logic by using
+    *       `repartitioning.streaming.force-slot-size` configuration.
+    */
+  protected var nDesiredPartitions: Int = numberOfPartitions
 
   /**
     * Partitioner history.
     */
   protected val broadcastHistory = ArrayBuffer[Partitioner]()
-
-  /**
-    * Number of desired partitions to have.
-    */
-  protected var numberOfPartitions: Int = 1
 
   /**
     * Latest partitioning information, mostly to decide whether a new one is necessary.
@@ -55,9 +76,16 @@ extends Logger with Serializable {
   protected val treeDepthHint =
     Configuration.get().internal.getInt("repartitioning.partitioner-tree-depth")
 
-  // TODO make keyExcess configurable
-  protected val keyExcess: Int = numberOfPartitions
-  protected val globalHistogramSizeLimit: Int = numberOfPartitions + keyExcess + 1
+  /**
+    * Adjusts the global histogram size limit when it is cut from local histograms.
+    */
+  protected val keyExcessMultiplier: Int =
+    Configuration.get().internal.getInt("repartitioning.excess-key-multiplier")
+  /**
+    * Size limit of the global histogram.
+    * More keys used might lead to better partitioner.
+    */
+  protected val globalHistogramSizeLimit: Int = (numberOfPartitions * keyExcessMultiplier) + 1
 
   /**
     * Current, active global histogram that has been computed from the
@@ -90,7 +118,7 @@ extends Logger with Serializable {
     */
   protected def isValidHistogram(histogram: scala.collection.Seq[(Any, Double)]): Boolean = {
     if (histogram.size < 2) {
-      logWarning(s"Histogram size is ${histogram.size}. Invalidated.")
+      logWarning(s"Histogram size is [${histogram.size}]. Invalidated.")
       false
     } else if (!histogram.forall(!_._2.isInfinity)) {
       logWarning(s"There is an infinite value in the histogram! Invalidated.")
@@ -107,12 +135,12 @@ extends Logger with Serializable {
   protected def getPartitioningInfo(
       globalHistogram: scala.collection.Seq[(Any, Double)]): PartitioningInfo = {
     if (Configuration.internal().getBoolean("repartitioning.streaming.force-slot-size")) {
-      numberOfPartitions = totalSlots
+      nDesiredPartitions = totalSlots
     } else {
       val initialInfo =
         PartitioningInfo.newInstance(globalHistogram, totalSlots, treeDepthHint)
       val multiplier = math.max(initialInfo.level / initialInfo.sortedValues.head, 1)
-      numberOfPartitions = (totalSlots * multiplier.ceil).toInt
+      nDesiredPartitions = (totalSlots * multiplier.ceil).toInt
     }
     logInfo(s"number of slots: $totalSlots, number of partitions: $numberOfPartitions")
     val partitioningInfo =

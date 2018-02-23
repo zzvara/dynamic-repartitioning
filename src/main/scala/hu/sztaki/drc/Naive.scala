@@ -14,6 +14,19 @@ object Conceptier {
   type Frequency = Double
 }
 
+class DefaultDriftRespecting extends Conceptier {
+  override protected val BACKOFF_FACTOR = 1.05
+  override protected var HISTOGRAM_HARD_BOUNDARY = 5000
+  override protected val DRIFT_BOUNDARY = 0.5
+  override protected val DRIFT_HISTORY_WEIGHT = 0.8
+  override protected val CONCEPT_SOLIDARITY = 5
+  override protected val TAKE = 2000
+  override protected val HISTOGRAM_SOFT_BOUNDARY = 5000
+  override protected val HISTOGRAM_COMPACTION = 2500
+
+  def getValue = super.value
+}
+
 trait Conceptier extends Sampling {
   protected val TAKE: Int =
     Configuration.internal().getInt("repartitioning.data-characteristics.take")
@@ -275,6 +288,7 @@ trait Sampling extends Logger {
   }
 
   def add(v: (Any, Double)): Unit
+  def add(v: Any)
 }
 
 object Naive {
