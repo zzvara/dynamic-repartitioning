@@ -19,7 +19,7 @@ abstract class DeciderStrategy(
   attemptID: Int,
   var numPartitions: Int,
   resourceStateHandler: Option[() => Int] = None)
-extends Decider(stageID, resourceStateHandler) {
+extends Decider(stageID, numPartitions, resourceStateHandler) {
   /**
     * Called by the RepartitioningTrackerMaster if new histogram arrives
     * for this particular job's strategy.
