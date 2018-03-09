@@ -14,14 +14,15 @@ case class StreamState(
   streamID: Int,
   relatedJobs: Set[Int] = Set[Int](),
   parentDStreams: scala.collection.immutable.Set[Int] = scala.collection.immutable.Set[Int](),
-  scanStrategy: StreamingDecider[_]) {
+  scanStrategy: StreamingDecider[_ <: { def numPartitions: Int }]) {
     /**
       * Deciders, which are StreamingStrategies by default for each
       * inner stage. Stages are identified in a lazy manner when a task finished.
       * A task holds a corresponding DStream ID, which defines a reoccurring
       * stage in a mini-batch.
       */
-    val strategies: mutable.Map[Int, StreamingDecider[_]] = mutable.Map[Int, StreamingDecider[_]]()
+    val strategies: mutable.Map[Int, StreamingDecider[_ <: { def numPartitions: Int }]] =
+      mutable.Map[Int, StreamingDecider[_ <: { def numPartitions: Int }]]()
 
     def addJob(jobID: Int): StreamState = {
       relatedJobs += jobID

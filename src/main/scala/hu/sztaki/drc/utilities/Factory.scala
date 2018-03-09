@@ -10,9 +10,10 @@ object Factory {
   abstract class withConfiguration[T]() extends Serializable {
     def apply(configuration: Config): T
   }
-  abstract class forStreamingDecider[Stream] extends Serializable {
+  abstract class forStreamingDecider[Stream <: { def numPartitions: Int }] extends Serializable {
     def apply(streamID: Int,
               stream: Stream,
+//              numPartitions: Int,
               perBatchSamplingRate: Int = 1,
               resourceStateHandler: Option[() => Int] = None): StreamingDecider[Stream]
   }

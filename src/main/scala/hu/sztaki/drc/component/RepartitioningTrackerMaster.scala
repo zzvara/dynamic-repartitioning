@@ -20,6 +20,7 @@ abstract class RepartitioningTrackerMaster[
   ev2: StrategyFactory[DeciderStrategy])
 extends RepartitioningTracker[Component] {
   type RTW = RepartitioningTrackerWorker[Component, Component, C, M, Operator]
+  println("Created RTM")
 
   /**
     * Collection of repartitioning workers. We expect them to register.
@@ -136,7 +137,7 @@ extends RepartitioningTracker[Component] {
         _stageData.update(stageID,
           StageState(stageID,
             implicitly[StrategyFactory[DeciderStrategy]].apply(
-              stageID,attemptID, parallelism, Some(() => getTotalSlots)),
+              stageID, attemptID, parallelism, Some(() => getTotalSlots)),
             repartitioningMode,
             scanStrategy))
         logInfo(s"Sending repartitioning scan-strategy to each worker for " +

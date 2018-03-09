@@ -36,7 +36,7 @@ object FlinkTest {
 
 		(1 to 50000).foreach {
 			i =>
-				sampler.add(MurmurHash3.stringHash(i.toString, -42819321).toString)
+				sampler.addAny(MurmurHash3.stringHash(i.toString, -42819321).toString)
 		}
 
 		sampler.getValue.toSeq.sortBy(-_._2).take(100).foreach {

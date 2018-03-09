@@ -5,7 +5,7 @@ import hu.sztaki.drc.{Sampling, StreamingDecider}
 
 import scala.collection.mutable
 
-trait StreamingRepartitioningTrackerMasterHelper[Stream <: { def ID: Int }] extends Logger {
+trait StreamingRepartitioningTrackerMasterHelper[Stream <: { def ID: Int; def numPartitions: Int }] extends Logger {
   protected val _streamData = mutable.HashMap[Int, StreamState]()
 
   protected var isInitialized = false
@@ -67,7 +67,7 @@ trait StreamingRepartitioningTrackerMasterHelper[Stream <: { def ID: Int }] exte
         val id = stream.ID
         streamData.strategies.getOrElseUpdate(
           id,
-          deciderFactory(stream.ID, stream, getTotalSlots)
+          deciderFactory(stream.ID, stream, 1, Some(() => getTotalSlots))
         ).asInstanceOf[StreamingDecider[Stream]].onPartitionMetricsArrival(partitionID, recordsRead)
       case None => logWarning(
         s"Could not update local histogram for streaming," +

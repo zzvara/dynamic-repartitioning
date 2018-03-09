@@ -1,5 +1,7 @@
 package hu.sztaki.drc.partitioner
 
+import hu.sztaki.drc.utilities.StringIdGenerator
+
 import scala.collection.immutable.{HashMap, TreeSet}
 
 object KeyIsolatorPartitioner {

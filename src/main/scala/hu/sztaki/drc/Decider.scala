@@ -25,7 +25,7 @@ abstract class Decider(
   /**
     * Parallelism of this compute stage.
     */
-  numberOfPartitions: Int,
+  var numberOfPartitions: Int,
   /**
     * Optional function that can query the state of the resources available for the application.
     */
@@ -85,7 +85,7 @@ extends Logger with Serializable {
     * Size limit of the global histogram.
     * More keys used might lead to better partitioner.
     */
-  protected val globalHistogramSizeLimit: Int = (numberOfPartitions * keyExcessMultiplier) + 1
+  protected val globalHistogramSizeLimit: Int = Math.max((numberOfPartitions * keyExcessMultiplier) + 1, 2500)
 
   /**
     * Current, active global histogram that has been computed from the
@@ -144,7 +144,7 @@ extends Logger with Serializable {
     }
     logInfo(s"number of slots: $totalSlots, number of partitions: $numberOfPartitions")
     val partitioningInfo =
-      PartitioningInfo.newInstance(globalHistogram, numberOfPartitions, treeDepthHint)
+      PartitioningInfo.newInstance(globalHistogram.take(keyExcessMultiplier * numberOfPartitions), numberOfPartitions, treeDepthHint)
     logInfo(s"Constructed partitioning info is [$partitioningInfo].")
     logObject(("partitioningInfo", stageID, partitioningInfo))
     latestPartitioningInfo = Some(partitioningInfo)
@@ -194,18 +194,30 @@ extends Logger with Serializable {
     * @todo Use `h.update` instead of `h.value` in batch job.
     */
   protected def computeGlobalHistogram: scala.collection.Seq[(Any, Double)] = {
-    val numRecords =
-      histograms.values.map(_.recordsPassed).sum
+    val numRecords = histograms.values.map(_.recordsPassed).sum
+    histograms.values.foreach(v => {
+//      println(s"### h.recordsPassed: ${v.recordsPassed}")
+//      println(s"### h.normalizationFactor: ${v.normalizationFactor}")
+//      println(s"### h.samplingRate: ${v.sampleRate}")
+//      println(s"### h_size: ${v.value.values.sum}")
+//      println(s"### h_normalised: ${v.normalize(v.recordsPassed).values.sum}")
+    })
+
+//    val normalizationFactors = histograms.values.map(_.normalizationFactor).sum
+//    println(s"### histograms size: ${histograms.size}")
+//    println(s"### numRecords: $numRecords")
+//    println(s"### numRecords: $normalizationFactors")
 
     val globalHistogram =
-      histograms.values.map(h => h.normalize(h.value, numRecords))
+      histograms.values.map(h => h.normalize(numRecords))
         .reduce(Naive.merge[Any, Double](0.0)(
           (a: Double, b: Double) => a + b)
         )
         .toSeq.sortBy(-_._2).take(globalHistogramSizeLimit)
-    logObject(("globalHistogram", stageID, globalHistogram))
+//    println(s"### global histogram size: ${globalHistogram.map(_._2).sum}")
+    logObject(("globalHistogram", stageID, globalHistogram.take(keyExcessMultiplier * numberOfPartitions)))
     logInfo(
-      globalHistogram.foldLeft(
+      globalHistogram.take(keyExcessMultiplier * numberOfPartitions).foldLeft(
         s"Global histogram for repartitioning " +
         s"step $repartitionCount:\n")((x, y) =>
         x + s"\t${y._1}\t->\t${y._2}\n"))
