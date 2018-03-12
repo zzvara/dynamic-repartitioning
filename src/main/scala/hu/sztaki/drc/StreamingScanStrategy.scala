@@ -7,6 +7,6 @@ import hu.sztaki.drc.messages.ScanStrategy
   */
 case class StreamingScanStrategy(
   streamID: Int,
-  strategy: StreamingDecider[_],
+  strategy: StreamingDecider[_ <: { def numPartitions: Int }],
   parentStreams: collection.immutable.Set[Int])
 extends ScanStrategy

@@ -160,7 +160,7 @@ extends RepartitioningTracker[Component] {
         _stageData.update(stageID,
           StageState(stageID,
             implicitly[StrategyFactory[DeciderStrategy]].apply(
-              stageID,attemptID, parallelism, Some(() => getTotalSlots)),
+              stageID, attemptID, parallelism, Some(() => getTotalSlots)),
             repartitioningMode,
             scanStrategy))
         logInfo(s"Sending repartitioning scan-strategy to each worker for " +

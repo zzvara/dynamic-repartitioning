@@ -2,12 +2,11 @@ package hu.sztaki.drc
 
 import hu.sztaki.drc.partitioner.KeyIsolatorPartitioner.Factory
 
-abstract class StreamingDecider[Stream](
+abstract class StreamingDecider[Stream <: { def numPartitions: Int }](
 	streamID: Int,
 	stream: Stream,
-	nPartitions: Int,
 	val perBatchSamplingRate: Int = 1,
 	resourceStateHandler: Option[() => Int] = None)
-extends Decider(streamID, nPartitions, resourceStateHandler) {
+extends Decider(streamID, stream.numPartitions, resourceStateHandler) {
 	def onPartitionMetricsArrival(partitionID: Int, recordsRead: Long): Unit
 }

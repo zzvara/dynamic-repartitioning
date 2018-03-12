@@ -60,13 +60,13 @@ trait Conceptier extends Sampling {
   var histogramCompaction = HISTOGRAM_COMPACTION
 
   def add(v: (Any, Double)): Unit = {
-    add(v._1)
+    addAny(v._1)
   }
 
-  def add(v: Any): Unit = {
+  def addAny(v: Any): Unit = {
     _recordsPassed += 1
     if (random.nextDouble() <= _sampleRate) {
-      (v, {
+      _normalizationFactor += _sampleScale
         map.get(v) match {
           case Some(value) => map.put(v, value + _sampleScale)
           case None =>
@@ -170,7 +170,6 @@ trait Conceptier extends Sampling {
             */
           history = currentKeySet
         }
-      })
 
     }
   }
@@ -179,6 +178,7 @@ trait Conceptier extends Sampling {
     case o: Conceptier =>
       _width = o._width
       _recordsPassed = o._recordsPassed
+			_normalizationFactor = o._normalizationFactor
       _sampleRate = o._sampleRate
       _version = o._version
       map = o.map
@@ -205,14 +205,13 @@ trait Naive extends Sampling {
   def add(v: (Any, Double)): Unit = {
     _recordsPassed += 1
     if (random.nextDouble() <= _sampleRate) {
-      (v._1, {
-        map.get(v._1) match {
-          case Some(value) => map.put(v._1, value + 1)
-          case None =>
-            _width += 1
-            map.put(v._1, 1)
-        }
-      })
+      _normalizationFactor += 1
+      map.get(v._1) match {
+        case Some(value) => map.put(v._1, value + 1)
+        case None =>
+          _width += 1
+          map.put(v._1, 1)
+      }
 
       if (_width >= _nextScaleBoundary) {
         _sampleRate = _sampleRate / BACKOFF_FACTOR
@@ -221,6 +220,7 @@ trait Naive extends Sampling {
         map.transform {
           case (_, x) => x / BACKOFF_FACTOR
         }
+        _normalizationFactor /= BACKOFF_FACTOR
 
         // Decide if additional cut is needed.
         if (_width > HISTOGRAM_SIZE_BOUNDARY) {
@@ -232,23 +232,23 @@ trait Naive extends Sampling {
             pair => temporaryMap.put(pair._1, pair._2)
           }
           map = temporaryMap
+//          _normalizationFactor = map.values.sum
         }
       }
     }
   }
 
-  def mergeWith(other: Sampling): Unit = other match {
-    case o: Naive =>
-      _width = o._width
-      _recordsPassed = o._recordsPassed
-      _sampleRate = o._sampleRate
-      _version = o._version
-      map = o.map
-    case _ => throw new UnsupportedOperationException(
-      s"Cannot merge [${this.getClass.getName}] with [${other.getClass.getName}]!")
-  }
-
-
+//  def mergeWith(other: Sampling): Unit = other match {
+//    case o: Naive =>
+//      _width = o._width
+//      _recordsPassed = o._recordsPassed
+//      _sampleRate = o._sampleRate
+//      _version = o._version
+//      _normalizationFactor = o._normalizationFactor
+//      map = o.map
+//    case _ => throw new UnsupportedOperationException(
+//      s"Cannot merge [${this.getClass.getName}] with [${other.getClass.getName}]!")
+//  }
 }
 
 trait Sampling extends Logger {
@@ -271,24 +271,45 @@ trait Sampling extends Logger {
   protected var _recordsPassed: Long = 0
   def recordsPassed: Long = _recordsPassed
 
+  protected var _normalizationFactor: Double = 0.0d
+  def normalizationFactor: Double = _normalizationFactor
+
   protected var _version: Int = 0
   def version: Int = _version
   def incrementVersion(): Unit = { _version += 1 }
 
   def isEmpty: Boolean = map.isEmpty
   def value: Map[Any, Double] = map.toMap
-  def reset(): Unit = map = map.empty
-  def setValue(values: Map[Any, Double]): Unit = {
-    values.foreach(value => map.put(value._1, value._2))
+  def reset(): Unit = {
+    map = map.empty
+//    _widthHistory = List.empty
+//    _sampleRate = 1.0d
+//    _backoffsPerformed = 0
+//    _width = 0
+//    _recordsPassed = 0
+//    _normalizationFactor = 0.0d
+  //  _version = 0
   }
 
-  def normalize(histogram: Map[Any, Double], normalizationParam: Long): Map[Any, Double] = {
-    val normalizationFactor = normalizationParam * sampleRate
-    histogram.mapValues(_ / normalizationFactor)
+  // suppose that values are counted with _sampleRate = 1
+  def setValue(values: Map[Any, Double]): Unit = {
+//    reset()
+    map = map.empty ++ values
+//    _width = map.size
+//    _normalizationFactor = map.values.sum
+//    _recordsPassed = _normalizationFactor.toLong
+//    values.foreach(value => map.put(value._1, value._2))
+  }
+
+  def normalize(normalizationParam: Long): Map[Any, Double] = {
+//    println(s"### _normalizationFactor: ${_normalizationFactor}")
+    value.mapValues(_ * _recordsPassed / (_normalizationFactor * normalizationParam))
+//    val normalizationFactor = normalizationParam * sampleRate
+//    value.mapValues(_ / normalizationFactor)
   }
 
   def add(v: (Any, Double)): Unit
-  def add(v: Any)
+  def addAny(v: Any)
 }
 
 object Naive {
