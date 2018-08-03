@@ -1,8 +1,9 @@
 package hu.sztaki.drc
 
-import hu.sztaki.drc.partitioner.KeyIsolatorPartitioner.Factory
+import hu.sztaki.drc.component.SimpleStream
+//import hu.sztaki.drc.partitioner.KeyIsolatorPartitioner.Factory
 
-abstract class StreamingDecider[Stream <: { def numPartitions: Int }](
+abstract class StreamingDecider[Stream <: SimpleStream](
 	streamID: Int,
 	stream: Stream,
 	val perBatchSamplingRate: Int = 1,

@@ -1,5 +1,6 @@
 package hu.sztaki.drc
 
+import hu.sztaki.drc.component.SimpleStream
 import hu.sztaki.drc.messages.ScanStrategy
 
 /**
@@ -7,6 +8,6 @@ import hu.sztaki.drc.messages.ScanStrategy
   */
 case class StreamingScanStrategy(
   streamID: Int,
-  strategy: StreamingDecider[_ <: { def numPartitions: Int }],
+  strategy: StreamingDecider[_ <: SimpleStream],
   parentStreams: collection.immutable.Set[Int])
 extends ScanStrategy

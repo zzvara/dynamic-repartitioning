@@ -2,9 +2,6 @@ package hu.sztaki.drc.utilities
 
 import scala.util.Random
 
-/**
-	* Created by szape on 2016.01.18..
-	*/
 class Distribution(val probabilities: Array[Double]) extends Serializable {
 
 	import Distribution._
@@ -40,7 +37,7 @@ class Distribution(val probabilities: Array[Double]) extends Serializable {
 		for (i <- 0 until width) {
 			empiric(i) /= sampleSize
 		}
-		new Distribution(empiric.filter(_ > 0).sortBy(-_))
+		new Distribution(empiric.sortBy(-_))
 	}
 
 	def unorderedEmpiric(sampleSize: Int): Array[Double] = {

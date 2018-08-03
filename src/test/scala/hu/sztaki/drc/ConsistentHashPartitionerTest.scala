@@ -21,14 +21,14 @@ object ConsistentHashPartitionerTest {
 		partitioner.printHashRing()
 		// TODO assert
 		keys.foreach { key =>
-			println(s"$key -> ${partitioner.get(key)}")
+			println(s"$key -> ${partitioner.getPartition(key)}")
 		}
 		println(s"migrationCostEstimation: ${partitioner.migrationCostEstimation}")
 
 		partitioner = partitioner.adapt(null, newWeighting)
 		partitioner.printHashRing()
 		keys.foreach { key =>
-			println(s"$key -> ${partitioner.get(key)}")
+			println(s"$key -> ${partitioner.getPartition(key)}")
 		}
 		println(s"migrationCostEstimation: ${partitioner.migrationCostEstimation}")
 	}

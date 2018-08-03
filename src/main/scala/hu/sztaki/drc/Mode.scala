@@ -5,5 +5,5 @@ package hu.sztaki.drc
  * not stage based.
  */
 object Mode extends Enumeration {
-  val ON, ONLY_ONCE, OFF = Value
+  val Enabled, Once, Disabled = Value
 }

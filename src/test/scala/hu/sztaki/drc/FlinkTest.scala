@@ -58,13 +58,13 @@ object FlinkTest {
 		val partitioningInfo: PartitioningInfo = PartitioningInfo.newInstance(globalHistogram, numPartitions, 31)
 		val partitioner = new KeyIsolatorPartitioner[ConsistentHashPartitioner](numPartitions,
 			(_, weighting) => new ConsistentHashPartitioner(weighting, 100)).update(partitioningInfo)
-		val partitionSizes = globalHistogram.map({ case (k, f) => (partitioner.get(k), f) })
+		val partitionSizes = globalHistogram.map({ case (k, f) => (partitioner.getPartition(k), f) })
 			.groupBy(_._1).map(g => (g._1, g._2.map(_._2).sum)).toArray.sortBy(_._1)
 
 		println(s"Heavy keys: ${heavyKeyHistogram.take(20).mkString("[", ", ", "...]")}")
 		// println(s"Partitioning info: $partitioningInfo")
 		println(s"Heavy keys to partitions: ${
-			heavyKeys.map(k => (k, partitioner.get(k)))
+			heavyKeys.map(k => (k, partitioner.getPartition(k)))
 				.mkString("[", ", ", "...]")
 		}")
 		println(s"Partition sizes: ${partitionSizes.mkString("[", ", ", "]")}")

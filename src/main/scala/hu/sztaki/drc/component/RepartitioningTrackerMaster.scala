@@ -61,12 +61,12 @@ extends RepartitioningTracker[Component] {
   protected val configuredRPMode: Mode.Value =
     if (Configuration.internal().getBoolean("repartitioning.enabled")) {
       if (Configuration.internal().getBoolean("repartitioning.batch.only-once")) {
-        Mode.ONLY_ONCE
+        Mode.Once
       } else {
-        Mode.ON
+        Mode.Enabled
       }
     } else {
-      Mode.OFF
+      Mode.Disabled
     }
   /**
     * Total compute slots available by the compute engine.
@@ -147,7 +147,7 @@ extends RepartitioningTracker[Component] {
                                    parallelism: Int,
                                    repartitioningMode: Mode.Value): Unit = {
     this.synchronized {
-      if (repartitioningMode == Mode.OFF) {
+      if (repartitioningMode == Mode.Disabled) {
         logInfo(s"A stage submitted, but dynamic repartitioning is switched off.")
       } else {
         logInfo(s"A stage with id $stageID (job ID is $jobID)" +
@@ -177,7 +177,7 @@ extends RepartitioningTracker[Component] {
                 s"Signaling corresponding RTW to shut down scanners.")
         if(!_standby) {
           shutDownScanners(region)
-          if (_stageData(region).mode == Mode.ONLY_ONCE) {
+          if (_stageData(region).mode == Mode.Once) {
             _standby = true
           }
         }

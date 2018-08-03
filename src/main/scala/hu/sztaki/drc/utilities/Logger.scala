@@ -13,7 +13,7 @@ trait Logger {
   ))
 
   protected def logObject(any: Serializable) = {
-    if (logger.underlying.isInfoEnabled) {
+    if (logger.underlying.isDebugEnabled) {
       val serialized = SerializationUtils.serialize(any)
       logger.info(serializedObjectPrefix + new String(Base64.getEncoder.encode(serialized)))
     }

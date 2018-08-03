@@ -4,5 +4,5 @@ import hu.sztaki.drc.StreamingDecider
 
 case class RepartitioningStreamState(
   streamID: Int,
-  strategy: StreamingDecider[_ <: { def numPartitions: Int }],
+  strategy: StreamingDecider[_ <: SimpleStream],
   parentStreams: collection.immutable.Set[Int])

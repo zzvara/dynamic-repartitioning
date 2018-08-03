@@ -1,10 +1,15 @@
 package hu.sztaki.drc
 
+import java.io.{BufferedWriter, File, FileWriter, PrintWriter}
+
 import hu.sztaki.drc.partitioner._
 import hu.sztaki.drc.utilities.{Configuration, Exception, Logger}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.{ExecutionContext, Future}
+import scala.io.Source
+import scala.util.{Failure, Success}
 
 /**
   * A decider strategy, that continuously receives histograms from the physical tasks
@@ -29,9 +34,18 @@ abstract class Decider(
   /**
     * Optional function that can query the state of the resources available for the application.
     */
-  resourceStateHandler: Option[() => Int] = None)(
-  implicit f: PartitionerFactory)
+  resourceStateHandler: Option[() => Int] = None)
 extends Logger with Serializable {
+
+  val f: PartitionerFactory = Configuration.internal().getString("repartitioning.partitioner-factory") match {
+    case "hu.sztaki.drc.partitioner.KeyIsolatorPartitioner.Factory" => hu.sztaki.drc.partitioner.KeyIsolatorPartitioner.Factory
+    case "hu.sztaki.drc.partitioner.GedikPartitioner.ScanFactory" => hu.sztaki.drc.partitioner.GedikPartitioner.ScanFactory
+    case "hu.sztaki.drc.partitioner.GedikPartitioner.ReadjFactory" => hu.sztaki.drc.partitioner.GedikPartitioner.ReadjFactory
+    case "hu.sztaki.drc.partitioner.GedikPartitioner.RedistFactory" => hu.sztaki.drc.partitioner.GedikPartitioner.RedistFactory
+    case _ => throw new RuntimeException("Partitioner factory class is not configured!")
+  }
+
+  println(s"#### Partitioner factory type: $f")
   /**
     * Stores the receives histogram.
     */
@@ -59,6 +73,7 @@ extends Logger with Serializable {
     *       `repartitioning.streaming.force-slot-size` configuration.
     */
   protected var nDesiredPartitions: Int = numberOfPartitions
+  println(s"### numberOfPartitions: $numberOfPartitions")
 
   /**
     * Partitioner history.
@@ -92,6 +107,31 @@ extends Logger with Serializable {
     * histograms, stored in this variable.
     */
   protected var currentGlobalHistogram: Option[scala.collection.Seq[(Any, Double)]] = None
+
+  protected val testData: Option[Seq[Seq[Int]]] = {
+    val testDataPath = """C:\Users\szape\Work\Projects\ER-DR\data\generated.txt"""
+    val batchSize = 100000
+
+    def readLines(path: String): Seq[String] = {
+      Source.fromFile(path).getLines.toSeq
+    }
+
+    def parseLine(line: String): Int = {
+      line.substring(1, line.length - 3).toInt
+    }
+
+    if(Configuration.internal().getBoolean("repartitioning.streaming.run-simulator"))
+      Some(readLines(testDataPath).map(parseLine).grouped(batchSize).toSeq)
+    else
+      None
+  }
+
+  protected val hashBalances: ArrayBuffer[Double] = ArrayBuffer[Double]()
+  protected val kIPBalances: ArrayBuffer[Double] = ArrayBuffer[Double]()
+  protected val shiftedKIPBalances: ArrayBuffer[Double] = ArrayBuffer[Double]()
+  protected val hashPartitioner = new HashPartitioner(numberOfPartitions)
+
+//  println(s"#### hash balance (train): ${hashBalances.mkString("[", ", ", "]")} (version: $currentVersion)")
 
   /**
     * Fetches the number of total slots available from an external resource-state handler.
@@ -195,6 +235,7 @@ extends Logger with Serializable {
     */
   protected def computeGlobalHistogram: scala.collection.Seq[(Any, Double)] = {
     val numRecords = histograms.values.map(_.recordsPassed).sum
+    logInfo(s"### records contributed to this histogram: $numRecords")
     println(s"### histograms size: ${histograms.size}")
     histograms.values.foreach(v => {
       //      println(s"### h.recordsPassed: ${v.recordsPassed}")
@@ -228,20 +269,107 @@ extends Logger with Serializable {
   protected def decideAndValidate(globalHistogram: scala.collection.Seq[(Any, Double)]): Boolean
 
   protected def getNewPartitioner(partitioningInfo: PartitioningInfo): Partitioner = {
+    def writeOut(record: Any): Unit = {
+      val writer = new PrintWriter(
+        new BufferedWriter(
+          new FileWriter(new File("""C:\Users\szape\Work\Projects\ER-DR\data\HistogramHeads.txt"""), true)))
+      writer.println(record)
+      //			writer.println("----")
+      writer.close()
+    }
+
     val sortedKeys = partitioningInfo.sortedKeys
 
     repartitioner = repartitioner match {
       case Some(rp) => Some(rp.update(partitioningInfo))
-      case None => Some(f.apply(nDesiredPartitions))
+      case None => Some(f.apply(nDesiredPartitions).update(partitioningInfo))
     }
 
-    logInfo("Partitioner created, simulating run with global histogram.")
-    sortedKeys.foreach {
-      key => logInfo(s"Key $key went to ${repartitioner.get.get(key)}.")
-    }
+    // ********************************************** debug code
+//    val maxPart = repartitioner.get.getPartition((1, 1))
+//    var goesToMaxPart = Seq[Int]()
+//    for (i <- 1 to 1000) {
+//      if (repartitioner.get.getPartition((i, 1)) == maxPart) {
+//        goesToMaxPart = goesToMaxPart :+ i
+//      }
+//    }
+//    println(s"###Partition of '1': $maxPart, keys that went to the same partition as '1': $goesToMaxPart")
+//    val secondPart = repartitioner.get.getPartition((2, 1))
+//    var goesToSecondPart = Seq[Int]()
+//    for (i <- 1 to 1000) {
+//      if (repartitioner.get.getPartition((i, 1)) == secondPart) {
+//        goesToSecondPart = goesToSecondPart :+ i
+//      }
+//    }
+//    println(s"###Partition of '2': $secondPart, keys that went to the same partition as '1': $goesToSecondPart")
 
     logInfo(s"Decided to repartition stage $stageID.")
     currentVersion += 1
+
+    writeOut(s"${sortedKeys.head} ($currentVersion)")
+
+    def calculateBalance(data: Seq[Int], dataSize: Int, part: Partitioner): Double = {
+      numberOfPartitions * data.map(r => (r, 1)).groupBy(part.getPartition).values.map(_.size).max.toDouble / dataSize
+    }
+
+    //    sortedKeys.foreach {
+    //      key => logInfo(s"Key $key went to ${repartitioner.get.get(key)}.")
+    //    }
+    if(Configuration.internal().getBoolean("repartitioning.streaming.run-simulator")) {
+      logInfo("Partitioner created, simulating run with global histogram.")
+
+
+      implicit val ec = ExecutionContext.global
+      val result: Future[(Double, Double, Double)] = Future {
+        val batchSize: Int = 100000
+        def data(i: Int): Seq[Int] = (testData.get)(i)
+//        val data1: Seq[Int] = (testData.get) (currentVersion - 1) // batches(currentVersion)
+//        val data2: Seq[Int] = (testData.get) (currentVersion - 1)
+//        val partitionsWithLoad: Seq[(Int, Double)] = data.map(repartitioner.get.get)
+//          .groupBy(identity)
+//          .mapValues(_.size.toDouble / batchSize)
+//          .toSeq
+//          .sortBy(_._1)
+//        val loads: Seq[Double] = partitionsWithLoad.map(_._2).sorted // apply partitioner to data, count values in the list and sort (.groupBy(identity).mapValues(_.size))
+//        val balance: Double = numberOfPartitions * loads.max // compute balance, compare with HashPartitioner
+        (calculateBalance(data(currentVersion - 1), batchSize, hashPartitioner),
+          calculateBalance(data(currentVersion - 1), batchSize, repartitioner.get),
+          calculateBalance(data(currentVersion), batchSize, repartitioner.get))
+      }
+
+      result onComplete {
+        case Success(res) =>
+          logInfo(s"Simulation completed for version $currentVersion")
+          hashBalances += res._1
+          kIPBalances += res._3
+          shiftedKIPBalances += res._2
+//          println(s"#### current version before if is $currentVersion")
+          if(currentVersion == 49) {
+//            calculateBalance((testData.get)(0), 100000, hashPartitioner)
+//            val dataPerPartitions = (testData.get)(0).map(hashPartitioner.get).groupBy(identity).map(s => (s._1, s._2.size)).toSeq.sortBy(_._1)
+//            val dataPerPartitions2 = numberOfPartitions * (testData.get)(0).map(hashPartitioner.get).groupBy(identity).values.map(_.size).max / 100000
+//            println(s"#### current version inside if is $currentVersion")
+            println(s"### hash balance (train): ${hashBalances.mkString("[", ", ", "]")} (version: $currentVersion)")
+            println(s"### KIP balance (test): ${kIPBalances.mkString("[", ", ", "]")} (version: $currentVersion)")
+            println(s"### KIP balance (train): ${shiftedKIPBalances.mkString("[", ", ", "]")} (version: $currentVersion)")
+          }
+//          println(s"### loads: ${res._1} (version: $currentVersion)")
+//          println(s"### balance: ${res._2} (version: $currentVersion)")
+        case Failure(t) => println("An error has occurred: " + t.getMessage)
+      }
+
+//      val batchSize: Int = 100000
+//      val data: Seq[Int] = (testData.get)(currentVersion) // batches(currentVersion)
+//      val partitionsWithLoad: Seq[(Int, Double)] = data.map(repartitioner.get.get)
+//        .groupBy(identity)
+//        .mapValues(_.size.toDouble / batchSize)
+//        .toSeq
+//        .sortBy(_._1)
+//      val loads: Seq[Double] = partitionsWithLoad.map(_._2).sorted // apply partitioner to data, count values in the list and sort (.groupBy(identity).mapValues(_.size))
+//      val balance: Double = numberOfPartitions * loads.max// compute balance, compare with HashPartitioner
+//      println(s"### loads: $loads (version: $currentVersion)")
+//      println(s"### balance: $balance (version: $currentVersion)")
+    }
 
     repartitioner.getOrElse(throw new RuntimeException("Partitioner is `None` after repartitioning. This was unexpected!"))
   }

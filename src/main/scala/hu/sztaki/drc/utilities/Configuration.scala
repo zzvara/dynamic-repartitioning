@@ -1,5 +1,7 @@
 package hu.sztaki.drc.utilities
 
+import java.util.Properties
+
 import com.typesafe.config.{Config, ConfigFactory}
 
 class Configuration {
