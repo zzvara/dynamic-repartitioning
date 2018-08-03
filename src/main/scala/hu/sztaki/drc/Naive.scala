@@ -3,6 +3,7 @@ package hu.sztaki.drc
 import hu.sztaki.drc.utilities.{Configuration, Logger}
 import it.unimi.dsi.util.XoRoShiRo128PlusRandom
 import Conceptier._
+import frequencycount.lossycounting.LossyCountingModel
 
 import scala.collection.mutable
 import scala.collection.mutable.HashMap
@@ -25,6 +26,27 @@ class DefaultDriftRespecting extends Conceptier {
   override protected val HISTOGRAM_COMPACTION = 2500
 
   def getValue = super.value
+}
+
+class Lossy(frequency: Double, error: Double)
+extends Sampling {
+  protected val lossy = new LossyCountingModel[Any](frequency, error)
+
+  def add(v: (Any, Double)): Unit = {
+    _recordsPassed += 1
+    lossy.incrCount(v._1)
+  }
+  def addAny(v: Any) = {
+    _recordsPassed += 1
+    lossy.incrCount(v)
+  }
+
+  private def output = lossy.computeOutput()
+
+  override def width: Int = output.length
+
+  override def isEmpty: Boolean = output.isEmpty
+  override def value: Map[Any, Double] = output.toMap.mapValues(_.toDouble)
 }
 
 trait Conceptier extends Sampling {
@@ -104,8 +126,9 @@ trait Conceptier extends Sampling {
             val newPositionsOfFallingKeys = mutable.Map[Key, (Position, Frequency)]()
             missingKeys.map {
               key =>
+                val position = sortedMap.indexWhere(_._1 == key)
                 newPositionsOfFallingKeys.put(key,
-                  (sortedMap.indexWhere(_._1 == key), map(key))
+                  (if (position == -1) { _width } else { position }, map.getOrElse(key, 0.0))
                 )
             }
             val minimumItemInTop = currentTop.last
