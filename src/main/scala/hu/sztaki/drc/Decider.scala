@@ -85,7 +85,7 @@ extends Logger with Serializable {
     * Size limit of the global histogram.
     * More keys used might lead to better partitioner.
     */
-  protected val globalHistogramSizeLimit: Int = Math.max((numberOfPartitions * keyExcessMultiplier) + 1, 2500)
+  protected def globalHistogramSizeLimit: Int = Math.max((nDesiredPartitions * keyExcessMultiplier) + 1, 2500)
 
   /**
     * Current, active global histogram that has been computed from the
@@ -136,15 +136,15 @@ extends Logger with Serializable {
       globalHistogram: scala.collection.Seq[(Any, Double)]): PartitioningInfo = {
     if (Configuration.internal().getBoolean("repartitioning.streaming.force-slot-size")) {
       nDesiredPartitions = totalSlots
-    } else {
+    } else if (Configuration.internal().getBoolean("repartitioning.streaming.optimize-parallelism")) {
       val initialInfo =
         PartitioningInfo.newInstance(globalHistogram, totalSlots, treeDepthHint)
       val multiplier = math.max(initialInfo.level / initialInfo.sortedValues.head, 1)
       nDesiredPartitions = (totalSlots * multiplier.ceil).toInt
     }
-    logInfo(s"number of slots: $totalSlots, number of partitions: $numberOfPartitions")
+    logInfo(s"number of slots: $totalSlots, number of partitions: $nDesiredPartitions")
     val partitioningInfo =
-      PartitioningInfo.newInstance(globalHistogram.take(keyExcessMultiplier * numberOfPartitions), numberOfPartitions, treeDepthHint)
+      PartitioningInfo.newInstance(globalHistogram.take(keyExcessMultiplier * nDesiredPartitions), nDesiredPartitions, treeDepthHint)
     logInfo(s"Constructed partitioning info is [$partitioningInfo].")
     logObject(("partitioningInfo", stageID, partitioningInfo))
     latestPartitioningInfo = Some(partitioningInfo)
@@ -195,16 +195,16 @@ extends Logger with Serializable {
     */
   protected def computeGlobalHistogram: scala.collection.Seq[(Any, Double)] = {
     val numRecords = histograms.values.map(_.recordsPassed).sum
+    println(s"### histograms size: ${histograms.size}")
     histograms.values.foreach(v => {
-//      println(s"### h.recordsPassed: ${v.recordsPassed}")
-//      println(s"### h.normalizationFactor: ${v.normalizationFactor}")
-//      println(s"### h.samplingRate: ${v.sampleRate}")
-//      println(s"### h_size: ${v.value.values.sum}")
-//      println(s"### h_normalised: ${v.normalize(v.recordsPassed).values.sum}")
+      //      println(s"### h.recordsPassed: ${v.recordsPassed}")
+      //      println(s"### h.normalizationFactor: ${v.normalizationFactor}")
+      //      println(s"### h.samplingRate: ${v.sampleRate}")
+      //      println(s"### h_size: ${v.value.values.sum}")
+      println(s"### h_normalised: ${v.normalize(v.recordsPassed).values.sum}")
     })
 
 //    val normalizationFactors = histograms.values.map(_.normalizationFactor).sum
-//    println(s"### histograms size: ${histograms.size}")
 //    println(s"### numRecords: $numRecords")
 //    println(s"### numRecords: $normalizationFactors")
 
@@ -215,9 +215,9 @@ extends Logger with Serializable {
         )
         .toSeq.sortBy(-_._2).take(globalHistogramSizeLimit)
 //    println(s"### global histogram size: ${globalHistogram.map(_._2).sum}")
-    logObject(("globalHistogram", stageID, globalHistogram.take(keyExcessMultiplier * numberOfPartitions)))
+    logObject(("globalHistogram", stageID, globalHistogram.take(10)))
     logInfo(
-      globalHistogram.take(keyExcessMultiplier * numberOfPartitions).foldLeft(
+      globalHistogram.take(10).foldLeft(
         s"Global histogram for repartitioning " +
         s"step $repartitionCount:\n")((x, y) =>
         x + s"\t${y._1}\t->\t${y._2}\n"))
@@ -232,7 +232,7 @@ extends Logger with Serializable {
 
     repartitioner = repartitioner match {
       case Some(rp) => Some(rp.update(partitioningInfo))
-      case None => Some(f.apply(totalSlots))
+      case None => Some(f.apply(nDesiredPartitions))
     }
 
     logInfo("Partitioner created, simulating run with global histogram.")
