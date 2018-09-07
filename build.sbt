@@ -21,7 +21,7 @@ libraryDependencies += "org.apache.commons" % "commons-lang3" % "3.5"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test"
 libraryDependencies += "org.jboss.interceptor" % "jboss-interceptor-api" % "1.1"
 libraryDependencies += "it.unimi.dsi" % "dsiutils" % "2.3.6"
-libraryDependencies += "com.github.fzakaria" % "space-saving" % "1.0.1-SNAPSHOT"
+//libraryDependencies += "com.github.fzakaria" % "space-saving" % "1.0.1-SNAPSHOT"
 libraryDependencies += "hu.sztaki" % "freq-count_2.11" % "1.0"
 
 publishTo := Some("Artifactory Realm" at "http://alpha:7777/artifactory/sbt-dev-local/")

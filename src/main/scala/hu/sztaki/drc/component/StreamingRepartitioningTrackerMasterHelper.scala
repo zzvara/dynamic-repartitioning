@@ -5,8 +5,11 @@ import hu.sztaki.drc.{Sampling, StreamingDecider}
 
 import scala.collection.mutable
 
-trait StreamingRepartitioningTrackerMasterHelper[Stream <: { def ID: Int; def numPartitions: Int }] extends Logger {
-  protected val _streamData = mutable.HashMap[Int, StreamState]()
+case class SimpleStream(ID: Int, numPartitions: Int)
+
+trait StreamingRepartitioningTrackerMasterHelper[Stream <: SimpleStream] extends Logger {
+
+  protected val _streamData = mutable.HashMap[Int, StreamState[Stream]]()
 
   protected var isInitialized = false
 
@@ -18,14 +21,14 @@ trait StreamingRepartitioningTrackerMasterHelper[Stream <: { def ID: Int; def nu
       Configuration.internal().getString("repartitioning.streaming.decider.factory") + "$",
       true,
       Thread.currentThread().getContextClassLoader
-    ).asInstanceOf[Class[hu.sztaki.drc.utilities.Factory.forStreamingDecider[Stream]]]
+    ).asInstanceOf[Class[hu.sztaki.drc.utilities.Factory.forStreamingDecider[SimpleStream]]]
 
   logInfo(s"The decider factory class is [${deciderFactoryClass.getClass.getName}].")
 
   protected val deciderFactory = deciderFactoryClass
       .getField("MODULE$")
       .get(deciderFactoryClass)
-      .asInstanceOf[hu.sztaki.drc.utilities.Factory.forStreamingDecider[Stream]]
+      .asInstanceOf[hu.sztaki.drc.utilities.Factory.forStreamingDecider[SimpleStream]]
 
   def getTotalSlots: Int
 
@@ -43,7 +46,7 @@ trait StreamingRepartitioningTrackerMasterHelper[Stream <: { def ID: Int; def nu
                 s"in stream ${stream.ID} with output stream ID $sID.")
         streamData.strategies.getOrElseUpdate(
           stream.ID,
-          deciderFactory(stream.ID, stream, 1, Some(() => getTotalSlots))
+          deciderFactory(stream.ID, streamData.stream, 1, Some(() => getTotalSlots))
         ).onHistogramArrival(partitionID, dataCharacteristics)
       case None => logWarning(
           s"Could not update local histogram for streaming," +
@@ -67,7 +70,7 @@ trait StreamingRepartitioningTrackerMasterHelper[Stream <: { def ID: Int; def nu
         val id = stream.ID
         streamData.strategies.getOrElseUpdate(
           id,
-          deciderFactory(stream.ID, stream, 1, Some(() => getTotalSlots))
+          deciderFactory(stream.ID, streamData.stream, 1, Some(() => getTotalSlots))
         ).asInstanceOf[StreamingDecider[Stream]].onPartitionMetricsArrival(partitionID, recordsRead)
       case None => logWarning(
         s"Could not update local histogram for streaming," +

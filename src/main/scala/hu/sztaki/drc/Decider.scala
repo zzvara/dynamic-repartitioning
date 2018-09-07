@@ -64,6 +64,7 @@ extends Logger with Serializable {
     *       `repartitioning.streaming.force-slot-size` configuration.
     */
   protected var nDesiredPartitions: Int = numberOfPartitions
+  println(s"### numberOfPartitions: $numberOfPartitions")
 
   /**
     * Partitioner history.
@@ -272,8 +273,26 @@ extends Logger with Serializable {
 
     repartitioner = repartitioner match {
       case Some(rp) => Some(rp.update(partitioningInfo))
-      case None => Some(f.apply(nDesiredPartitions))
+      case None => Some(f.apply(nDesiredPartitions).update(partitioningInfo))
     }
+
+    // ********************************************** debug code
+    val maxPart = repartitioner.get.get((1, 1))
+    var goesToMaxPart = Seq[Int]()
+    for (i <- 1 to 1000) {
+      if (repartitioner.get.get((i, 1)) == maxPart) {
+        goesToMaxPart = goesToMaxPart :+ i
+      }
+    }
+    println(s"###Partition of '1': $maxPart, keys that went to the same partition as '1': $goesToMaxPart")
+    val secondPart = repartitioner.get.get((2, 1))
+    var goesToSecondPart = Seq[Int]()
+    for (i <- 1 to 1000) {
+      if (repartitioner.get.get((i, 1)) == secondPart) {
+        goesToSecondPart = goesToSecondPart :+ i
+      }
+    }
+    println(s"###Partition of '2': $secondPart, keys that went to the same partition as '1': $goesToSecondPart")
 
     logInfo(s"Decided to repartition stage $stageID.")
     currentVersion += 1
