@@ -34,9 +34,18 @@ abstract class Decider(
   /**
     * Optional function that can query the state of the resources available for the application.
     */
-  resourceStateHandler: Option[() => Int] = None)(
-  implicit f: PartitionerFactory)
+  resourceStateHandler: Option[() => Int] = None)
 extends Logger with Serializable {
+
+  val f: PartitionerFactory = Configuration.internal().getString("repartitioning.partitioner-factory") match {
+    case "hu.sztaki.drc.partitioner.KeyIsolatorPartitioner.Factory" => hu.sztaki.drc.partitioner.KeyIsolatorPartitioner.Factory
+    case "hu.sztaki.drc.partitioner.GedikPartitioner.ScanFactory" => hu.sztaki.drc.partitioner.GedikPartitioner.ScanFactory
+    case "hu.sztaki.drc.partitioner.GedikPartitioner.ReadjFactory" => hu.sztaki.drc.partitioner.GedikPartitioner.ReadjFactory
+    case "hu.sztaki.drc.partitioner.GedikPartitioner.RedistFactory" => hu.sztaki.drc.partitioner.GedikPartitioner.RedistFactory
+    case _ => throw new RuntimeException("Partitioner factory class is not configured!")
+  }
+
+  println(s"#### Partitioner factory type: $f")
   /**
     * Stores the receives histogram.
     */

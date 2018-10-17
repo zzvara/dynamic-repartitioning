@@ -18,19 +18,19 @@ object GedikPartitioner {
 
 	implicit object ScanFactory extends PartitionerFactory {
 		override def apply(numPartitions: Int): GedikPartitioner = {
-			val betaS: Double => Double = x => 1.0
-			val betaC: Double => Double = x => 1.0
-			val thetaS = 0.01
-			val thetaC = 0.01
-			val thetaN = 0.01
+			val betaS: Double => Double = x => x
+			val betaC: Double => Double = x => x
+			val thetaS = 0.2
+			val thetaC = 0.2
+			val thetaN = 0.2
 			val utility: (Double, Double) => Double = {
-				case (balancePenalty, migrationPenalty) => balancePenalty
+				case (balancePenalty, migrationPenalty) => balancePenalty + migrationPenalty
 			}
 
 			val hash = Hashing.murmur3_32()
 			val hashFunc: Any => Int = {
 				case (x: String) =>
-					hash.hashUnencodedChars(x).asInt()
+					hash.hashString(x).asInt()
 				case (x: Int) =>
 					hash.hashInt(x).asInt()
 				case (i: Int, j: Int) =>
@@ -42,26 +42,26 @@ object GedikPartitioner {
 					throw new UnsupportedOperationException("Currently we can only hash Int or String.")
 			}
 
-			new GedikPartitioner(numPartitions, 3, hashFunc,
+			new GedikPartitioner(numPartitions, 100, hashFunc,
 				betaS, betaC, thetaS, thetaC, thetaN, utility, "Scan")
 		}
 	}
 
 	implicit object ReadjFactory extends PartitionerFactory {
 		override def apply(numPartitions: Int): GedikPartitioner = {
-			val betaS: Double => Double = x => 1.0
-			val betaC: Double => Double = x => 1.0
-			val thetaS = 0.01
-			val thetaC = 0.01
-			val thetaN = 0.01
+			val betaS: Double => Double = x => x
+			val betaC: Double => Double = x => x
+			val thetaS = 0.2
+			val thetaC = 0.2
+			val thetaN = 0.2
 			val utility: (Double, Double) => Double = {
-				case (balancePenalty, migrationPenalty) => balancePenalty
+				case (balancePenalty, migrationPenalty) => balancePenalty + migrationPenalty
 			}
 
 			val hash = Hashing.murmur3_32()
 			val hashFunc: Any => Int = {
 				case (x: String) =>
-					hash.hashUnencodedChars(x).asInt()
+					hash.hashString(x).asInt()
 				case (x: Int) =>
 					hash.hashInt(x).asInt()
 				case (i: Int, j: Int) =>
@@ -73,26 +73,26 @@ object GedikPartitioner {
 					throw new UnsupportedOperationException("Currently we can only hash Int or String.")
 			}
 
-			new GedikPartitioner(numPartitions, 3, hashFunc,
+			new GedikPartitioner(numPartitions, 100, hashFunc,
 				betaS, betaC, thetaS, thetaC, thetaN, utility, "Readj")
 		}
 	}
 
 	implicit object RedistFactory extends PartitionerFactory {
 		override def apply(numPartitions: Int): GedikPartitioner = {
-			val betaS: Double => Double = x => 1.0
-			val betaC: Double => Double = x => 1.0
-			val thetaS = 0.01
-			val thetaC = 0.01
-			val thetaN = 0.01
+			val betaS: Double => Double = x => x
+			val betaC: Double => Double = x => x
+			val thetaS = 0.2
+			val thetaC = 0.2
+			val thetaN = 0.2
 			val utility: (Double, Double) => Double = {
-				case (balancePenalty, migrationPenalty) => balancePenalty
+				case (balancePenalty, migrationPenalty) => balancePenalty + migrationPenalty
 			}
 
 			val hash = Hashing.murmur3_32()
 			val hashFunc: Any => Int = {
 				case (x: String) =>
-					hash.hashUnencodedChars(x).asInt()
+					hash.hashString(x).asInt()
 				case (x: Int) =>
 					hash.hashInt(x).asInt()
 				case (i: Int, j: Int) =>
@@ -104,7 +104,7 @@ object GedikPartitioner {
 					throw new UnsupportedOperationException("Currently we can only hash Int or String.")
 			}
 
-			new GedikPartitioner(numPartitions, 3, hashFunc,
+			new GedikPartitioner(numPartitions, 100, hashFunc,
 				betaS, betaC, thetaS, thetaC, thetaN, utility, "Redist")
 		}
 	}

@@ -1,7 +1,7 @@
 package hu.sztaki.drc
 
 import hu.sztaki.drc.component.SimpleStream
-import hu.sztaki.drc.partitioner.KeyIsolatorPartitioner.Factory
+//import hu.sztaki.drc.partitioner.KeyIsolatorPartitioner.Factory
 
 abstract class StreamingDecider[Stream <: SimpleStream](
 	streamID: Int,
