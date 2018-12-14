@@ -2,7 +2,7 @@ import sbt.Credentials
 
 name := "dynamic-repartitioning-core"
 
-version := "0.1.71-SNAPSHOT"
+version := "0.1.72-SNAPSHOT"
 
 organization := "hu.sztaki"
 

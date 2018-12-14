@@ -1,8 +1,10 @@
-
 package hu.sztaki.drc
 
+import scala.collection.mutable
+
 object Sampling {
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
+
     val accum = new Naive {}
 
     val d1 = System.nanoTime()
@@ -34,7 +36,6 @@ object Sampling {
     val t4 = System.nanoTime()
 
     println((t4 - t3) / (1000 * 1000))
-
 
   }
 }
