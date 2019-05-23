@@ -4,5 +4,5 @@ import scala.reflect.ClassTag
 
 trait Messageable {
   def send(message: Any): Unit
-  def askWithRetry[T: ClassTag](message: Any): T
+  def askSync[T: ClassTag](message: Any): T
 }

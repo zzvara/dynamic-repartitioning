@@ -1,9 +1,10 @@
-
 package hu.sztaki.drc
 
-object Sampling {
+object SamplingTest {
   def main(args: Array[String]) {
-    val accum = new Naive {}
+    val accum = new Naive {
+      override def addAny(v: Any): Unit = {}
+    }
 
     val d1 = System.nanoTime()
 

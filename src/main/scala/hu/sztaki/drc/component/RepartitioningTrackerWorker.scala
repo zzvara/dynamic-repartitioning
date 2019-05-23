@@ -39,7 +39,7 @@ extends RepartitioningTracker[MasterReference] {
 
   protected def askTracker[T: ClassTag](message: Any): T = {
     try {
-      master.askWithRetry[T](message)
+      master.askSync[T](message)
     } catch {
       case e: Exception =>
         logError("Error communicating with RepartitioningTracker", e)
