@@ -1,6 +1,7 @@
 package hu.sztaki.drc.partitioner
 
 import java.nio.ByteBuffer
+import java.nio.charset.Charset
 
 import com.google.common.collect.TreeMultiset
 import com.google.common.hash.Hashing
@@ -30,7 +31,7 @@ object GedikPartitioner {
       val hash = Hashing.murmur3_32()
       val hashFunc: Any => Int = {
         case (x: String) =>
-          hash.hashString(x).asInt()
+          hash.hashString(x, Charset.defaultCharset()).asInt()
         case (x: Int) =>
           hash.hashInt(x).asInt()
         case (i: Int, j: Int) =>
@@ -61,7 +62,7 @@ object GedikPartitioner {
       val hash = Hashing.murmur3_32()
       val hashFunc: Any => Int = {
         case (x: String) =>
-          hash.hashString(x).asInt()
+          hash.hashString(x, Charset.defaultCharset()).asInt()
         case (x: Int) =>
           hash.hashInt(x).asInt()
         case (i: Int, j: Int) =>
@@ -92,7 +93,7 @@ object GedikPartitioner {
       val hash = Hashing.murmur3_32()
       val hashFunc: Any => Int = {
         case (x: String) =>
-          hash.hashString(x).asInt()
+          hash.hashString(x, Charset.defaultCharset()).asInt()
         case (x: Int) =>
           hash.hashInt(x).asInt()
         case (i: Int, j: Int) =>
