@@ -1,5 +1,4 @@
 logLevel := Level.Warn
 
-addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "latest.integration")
-addSbtPlugin("io.get-coursier" % "sbt-coursier" % "latest.integration")
-addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "latest.integration")
+addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.10")
+addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.10.0-RC1")

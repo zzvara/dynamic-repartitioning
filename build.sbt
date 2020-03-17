@@ -6,27 +6,22 @@ version := "0.2.0-SNAPSHOT"
 
 organization := "hu.sztaki"
 
-scalaVersion := "2.12.8"
+scalaVersion := "2.12.11"
 
-resolvers ++= Seq(
-  "Soft-props repository" at "http://dl.bintray.com/content/softprops/maven",
-  "Lightshed Maven repository" at "http://dl.bintray.com/content/lightshed/maven",
-  "Seasar" at "https://www.seasar.org/maven/maven2/"
-)
+resolvers ++= Seq("Maven Central" at "https://repo1.maven.org/maven2/")
 
 updateOptions := updateOptions.value.withGigahorse(false)
 
 publishConfiguration := publishConfiguration.value.withOverwrite(true)
 
-resolvers += Resolver.mavenLocal
-
-libraryDependencies += "com.typesafe" % "config" % "1.3.1"
-libraryDependencies += "com.typesafe.scala-logging" % "scala-logging_2.12" % "3.5.0"
-libraryDependencies += "org.apache.commons" % "commons-lang3" % "3.7"
-libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.5" % "test"
-libraryDependencies += "org.jboss.interceptor" % "jboss-interceptor-api" % "1.1"
-libraryDependencies += "it.unimi.dsi" % "dsiutils" % "2.3.6"
-libraryDependencies += "com.google.guava" % "guava" % "27.1-jre"
-
-//libraryDependencies += "com.github.fzakaria" % "space-saving" % "1.0.1-SNAPSHOT"
-libraryDependencies += "hu.sztaki" % "freq-count_2.12" % "2.0"
+libraryDependencies += "com.typesafe" % "config" % "1.4.0"
+libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2"
+libraryDependencies += "org.apache.commons" % "commons-lang3" % "3.9"
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.1.1" % Test
+libraryDependencies += "it.unimi.dsi" % "dsiutils" % "2.6.3"
+/**
+  * @note This can't be upgraded due to dsiutils
+  */
+libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.0-alpha1"
+libraryDependencies += "com.google.guava" % "guava" % "28.2-jre"
+libraryDependencies += "hu.sztaki" %% "freq-count" % "2.0"
