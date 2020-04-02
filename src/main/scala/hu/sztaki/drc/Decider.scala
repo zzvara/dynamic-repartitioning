@@ -2,6 +2,7 @@ package hu.sztaki.drc
 
 import java.io.{BufferedWriter, File, FileWriter, PrintWriter}
 
+import com.typesafe.config.ConfigException
 import hu.sztaki.drc.partitioner._
 import hu.sztaki.drc.utilities.{Configuration, Exception, Logger}
 
@@ -109,21 +110,28 @@ extends Logger with Serializable {
   protected var currentGlobalHistogram: Option[scala.collection.Seq[(Any, Double)]] = None
 
   protected val testData: Option[Seq[Seq[Int]]] = {
-    val testDataPath = """C:\Users\szape\Work\Projects\ER-DR\data\generated.txt"""
-    val batchSize = 100000
+    try {
+      if(Configuration.internal().getBoolean("repartitioning.streaming.run-simulator")){
+        val testDataPath = Configuration.internal().getString("repartitioning.streaming.run-simulator-data-path")
 
-    def readLines(path: String): Seq[String] = {
-      Source.fromFile(path).getLines.toSeq
+        val batchSize = 100000
+
+        def readLines(path: String): Seq[String] = {
+          Source.fromFile(path).getLines.toSeq
+        }
+
+        def parseLine(line: String): Int = {
+          line.substring(1, line.length - 3).toInt
+        }
+
+        Some(readLines(testDataPath).map(parseLine).grouped(batchSize).toSeq)
+      }
+      else
+        None
+    } catch {
+      case _ : ConfigException.Missing =>
+        None
     }
-
-    def parseLine(line: String): Int = {
-      line.substring(1, line.length - 3).toInt
-    }
-
-    if(Configuration.internal().getBoolean("repartitioning.streaming.run-simulator"))
-      Some(readLines(testDataPath).map(parseLine).grouped(batchSize).toSeq)
-    else
-      None
   }
 
   protected val hashBalances: ArrayBuffer[Double] = ArrayBuffer[Double]()
@@ -270,12 +278,18 @@ extends Logger with Serializable {
 
   protected def getNewPartitioner(partitioningInfo: PartitioningInfo): Partitioner = {
     def writeOut(record: Any): Unit = {
-      val writer = new PrintWriter(
-        new BufferedWriter(
-          new FileWriter(new File("""C:\Users\szape\Work\Projects\ER-DR\data\HistogramHeads.txt"""), true)))
-      writer.println(record)
-      //			writer.println("----")
-      writer.close()
+      try {
+        val saveLocation = Configuration.internal().getString("repartitioning.streaming.save-histogram-path")
+        
+        val writer = new PrintWriter(
+          new BufferedWriter(
+            new FileWriter(new File(saveLocation), true)))
+        writer.println(record)
+        //			writer.println("----")
+        writer.close()
+      } catch {
+        case _ : ConfigException.Missing =>
+      }
     }
 
     val sortedKeys = partitioningInfo.sortedKeys
